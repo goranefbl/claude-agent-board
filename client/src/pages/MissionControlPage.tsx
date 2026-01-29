@@ -112,7 +112,9 @@ export default function MissionControlPage() {
     // Attach project names to sessions
     const projMap = new Map(projData.map(p => [p.id, p.name]));
     projMap.set(GENERAL_PROJECT_ID, 'General');
-    const enriched = sessData.map(s => ({ ...s, project_name: projMap.get(s.project_id) || '' }));
+    const enriched = sessData
+      .filter(s => s.project_id !== GENERAL_PROJECT_ID)
+      .map(s => ({ ...s, project_name: projMap.get(s.project_id) || '' }));
     setSessions(enriched);
     setProjects(projData);
     setActivity(actData);
@@ -184,7 +186,6 @@ export default function MissionControlPage() {
                 className="bg-[#161b22] border border-gray-800/60 rounded-md px-2.5 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-amber-500/50"
               >
                 <option value="all">All Projects</option>
-                <option value={GENERAL_PROJECT_ID}>General</option>
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}

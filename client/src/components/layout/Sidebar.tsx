@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   MessageCircle, FolderPlus, MessageSquarePlus, Trash2,
-  Zap, Bot, Settings, ScrollText, LogOut, User, LayoutGrid
+  Zap, Bot, Settings, ScrollText, LogOut, User, LayoutGrid, Settings2
 } from 'lucide-react';
 import { AuthContext } from '../../App';
 import { api } from '../../api/http';
@@ -161,15 +161,27 @@ export default function Sidebar({
                 <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-amber-500" />
               )}
               <span className="truncate pl-1">{p.name}</span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteProject(p.id, p.name);
-                }}
-                className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-opacity"
-              >
-                <Trash2 size={13} />
-              </button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/projects/${p.id}`);
+                  }}
+                  className="text-gray-600 hover:text-gray-300 transition-colors"
+                  title="Project settings"
+                >
+                  <Settings2 size={13} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteProject(p.id, p.name);
+                  }}
+                  className="text-gray-600 hover:text-red-400 transition-colors"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
 
             {/* Sessions under selected project */}
@@ -179,7 +191,7 @@ export default function Sidebar({
                   onClick={onCreateSession}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 hover:text-amber-400 w-full transition-colors"
                 >
-                  <MessageSquarePlus size={12} /> New Chat
+                  <MessageSquarePlus size={12} /> New Session
                 </button>
                 {sessions.filter(s => s.project_id === p.id).map((s) => (
                   <div

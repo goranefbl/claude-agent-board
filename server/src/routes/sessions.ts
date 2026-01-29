@@ -33,7 +33,7 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { project_id, agent_id, title = 'New Chat' } = req.body;
+  const { project_id, agent_id, title = 'New Session' } = req.body;
   if (!agent_id) return res.status(400).json({ error: 'agent_id required' });
   const pid = project_id || GENERAL_PROJECT_ID;
   const id = uuid();

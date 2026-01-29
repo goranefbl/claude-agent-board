@@ -4,10 +4,18 @@ import type { Session } from '../../../shared/types';
 
 export function useSessions(projectId: string | null) {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [prevProjectId, setPrevProjectId] = useState(projectId);
+
+  // Synchronous reset when projectId changes (runs during render, before effects)
+  if (projectId !== prevProjectId) {
+    setPrevProjectId(projectId);
+    setSessions([]);
+    setLoading(true);
+  }
 
   const refresh = useCallback(async () => {
-    if (!projectId) { setSessions([]); return; }
+    if (!projectId) { setSessions([]); setLoading(false); return; }
     setLoading(true);
     try {
       setSessions(await api.get<Session[]>(`/sessions?project_id=${projectId}`));

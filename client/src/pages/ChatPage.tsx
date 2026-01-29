@@ -13,6 +13,7 @@ import Header from '../components/layout/Header';
 import ChatView from '../components/chat/ChatView';
 import MemoryPanel from '../components/memory/MemoryPanel';
 import SkillToggleList from '../components/skills/SkillToggleList';
+import FileExplorer from '../components/files/FileExplorer';
 import type { SessionStatus } from '../../../shared/types';
 
 const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
@@ -37,30 +38,36 @@ export default function ChatPage() {
   }, [projectFromUrl, sessionFromUrl]);
   const [showMemory, setShowMemory] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
+  const [activeView, setActiveView] = useState<'chat' | 'files'>('chat');
 
   const { projects, create: createProject, remove: removeProject } = useProjects();
   // When no project selected, show sessions for the General project
   const activeProjectId = selectedProjectId || GENERAL_PROJECT_ID;
-  const { sessions, create: createSession, remove: removeSession, refresh: refreshSessions } = useSessions(activeProjectId);
+  const { sessions, loading: sessionsLoading, create: createSession, remove: removeSession, refresh: refreshSessions } = useSessions(activeProjectId);
   const { agents } = useAgents();
   const { messages, streaming, streamContent, toolActivities, error, lastCost, send, stop } = useChat(selectedSessionId);
   const { memory, addFact, removeFact, update: updateMemory, refresh: refreshMemory } = useMemory(selectedSessionId);
   const { skills: sessionSkills, toggle: toggleSkill } = useSessionSkills(selectedSessionId, selectedProjectId);
 
-  // Auto-select or auto-create a session when landing on /chat
+  // Check if current project has a path (file explorer only for real projects)
+  const currentProject = projects.find((p) => p.id === selectedProjectId);
+  const hasProject = !!currentProject?.path;
+
+  // Reset to chat view when switching away from a project
+  useEffect(() => {
+    if (!hasProject && activeView === 'files') {
+      setActiveView('chat');
+    }
+  }, [hasProject, activeView]);
+
+  // Auto-select first session when none is selected (don't auto-create)
   useEffect(() => {
     if (selectedSessionId) return;
-    if (agents.length === 0) return;
+    if (sessionsLoading) return;
     if (sessions.length > 0) {
       setSelectedSessionId(sessions[0].id);
-      return;
     }
-    // No sessions — create one
-    const defaultAgent = agents.find((a) => a.is_default) || agents[0];
-    createSession(defaultAgent.id, 'New Chat').then((s) => {
-      if (s) setSelectedSessionId(s.id);
-    });
-  }, [agents, sessions, selectedSessionId]);
+  }, [sessions, selectedSessionId, sessionsLoading]);
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId);
   const selectedAgentId = selectedSession?.agent_id || null;
@@ -150,21 +157,30 @@ export default function ChatPage() {
           sessionId={selectedSessionId}
           sessionStatus={selectedSession?.status}
           onStatusChange={handleStatusChange}
+          activeView={activeView}
+          onToggleView={setActiveView}
+          hasProject={hasProject}
         />
       }
-      rightPanel={rightPanel}
+      rightPanel={activeView === 'chat' ? rightPanel : undefined}
     >
-      <ChatView
-        messages={messages}
-        streaming={streaming}
-        streamContent={streamContent}
-        toolActivities={toolActivities}
-        error={error}
-        lastCost={lastCost}
-        onSend={send}
-        onStop={stop}
-        hasSession={!!selectedSessionId}
-      />
+      {/* Both views stay mounted; inactive is hidden with CSS */}
+      <div style={{ display: activeView === 'chat' ? 'contents' : 'none' }}>
+        <ChatView
+          messages={messages}
+          streaming={streaming}
+          streamContent={streamContent}
+          toolActivities={toolActivities}
+          error={error}
+          lastCost={lastCost}
+          onSend={send}
+          onStop={stop}
+          hasSession={!!selectedSessionId}
+        />
+      </div>
+      {activeView === 'files' && hasProject && selectedProjectId && (
+        <FileExplorer projectId={selectedProjectId} />
+      )}
     </MainLayout>
   );
 }

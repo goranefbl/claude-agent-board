@@ -8,6 +8,7 @@ import SkillsPage from './pages/SkillsPage';
 import LogsPage from './pages/LogsPage';
 import ConfigPage from './pages/ConfigPage';
 import MissionControlPage from './pages/MissionControlPage';
+import ProjectSettingsPage from './pages/ProjectSettingsPage';
 
 export default function App() {
   const { authenticated, loading, login, logout, username } = useAuth();
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/skills" element={<SkillsPage />} />
         <Route path="/logs" element={<LogsPage />} />
+        <Route path="/projects/:id" element={<ProjectSettingsPage />} />
         <Route path="/settings" element={<ConfigPage />} />
       </Routes>
     </AuthContext.Provider>

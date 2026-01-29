@@ -63,7 +63,7 @@ export function createSchema() {
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       agent_id TEXT NOT NULL REFERENCES agents(id),
-      title TEXT NOT NULL DEFAULT 'New Chat',
+      title TEXT NOT NULL DEFAULT 'New Session',
       status TEXT NOT NULL DEFAULT 'backlog',
       status_updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -95,6 +95,12 @@ export function createSchema() {
       summary TEXT NOT NULL DEFAULT '',
       pinned_facts TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
