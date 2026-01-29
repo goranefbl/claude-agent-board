@@ -31,6 +31,18 @@ function migrate(db: ReturnType<typeof getDb>) {
   if (!projCols.some(c => c.name === 'git_origin_url')) {
     db.exec("ALTER TABLE projects ADD COLUMN git_origin_url TEXT NOT NULL DEFAULT ''");
   }
+  if (!projCols.some(c => c.name === 'auto_summarize')) {
+    db.exec("ALTER TABLE projects ADD COLUMN auto_summarize INTEGER NOT NULL DEFAULT 1");
+  }
+
+  // Migrate legacy skill project_id into skill_projects junction table
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='skill_projects'").get();
+  if (tables) {
+    const legacySkills = db.prepare("SELECT id, project_id FROM skills WHERE project_id IS NOT NULL").all() as { id: string; project_id: string }[];
+    for (const s of legacySkills) {
+      db.prepare("INSERT OR IGNORE INTO skill_projects (skill_id, project_id) VALUES (?, ?)").run(s.id, s.project_id);
+    }
+  }
 }
 
 export function createSchema() {
@@ -132,6 +144,12 @@ export function createSchema() {
       skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
       enabled INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (session_id, skill_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS skill_projects (
+      skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      PRIMARY KEY (skill_id, project_id)
     );
 
     CREATE TABLE IF NOT EXISTS mcp_servers (

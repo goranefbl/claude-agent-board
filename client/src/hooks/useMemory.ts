@@ -3,7 +3,6 @@ import { api } from '../api/http';
 
 interface MemoryData {
   summary: string;
-  pinned_facts: string[];
 }
 
 export function useMemory(sessionId: string | null) {
@@ -26,17 +25,5 @@ export function useMemory(sessionId: string | null) {
     setMemory(updated);
   };
 
-  const addFact = async (fact: string) => {
-    if (!memory) return;
-    await update({ pinned_facts: [...memory.pinned_facts, fact] });
-  };
-
-  const removeFact = async (index: number) => {
-    if (!memory) return;
-    const facts = [...memory.pinned_facts];
-    facts.splice(index, 1);
-    await update({ pinned_facts: facts });
-  };
-
-  return { memory, refresh, update, addFact, removeFact };
+  return { memory, refresh, update };
 }

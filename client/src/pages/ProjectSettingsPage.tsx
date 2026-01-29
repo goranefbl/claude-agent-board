@@ -21,6 +21,7 @@ export default function ProjectSettingsPage() {
   const [gitPushDisabled, setGitPushDisabled] = useState(false);
   const [gitProtectedBranches, setGitProtectedBranches] = useState('');
   const [color, setColor] = useState('');
+  const [autoSummarize, setAutoSummarize] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const { memory: projectMemory, update: updateProjectMemory } = useProjectMemory(id || null);
@@ -37,6 +38,7 @@ export default function ProjectSettingsPage() {
       setGitPushDisabled(!!p.git_push_disabled);
       setGitProtectedBranches(p.git_protected_branches || '');
       setColor(p.color || '');
+      setAutoSummarize(p.auto_summarize !== 0);
     }).catch(() => navigate('/chat'));
   }, [id, navigate]);
 
@@ -50,6 +52,7 @@ export default function ProjectSettingsPage() {
         name,
         description,
         color,
+        auto_summarize: autoSummarize ? 1 : 0,
         git_origin_url: gitOriginUrl,
         git_push_disabled: gitPushDisabled ? 1 : 0,
         git_protected_branches: gitProtectedBranches,
@@ -138,6 +141,16 @@ export default function ProjectSettingsPage() {
                 ))}
               </div>
             </div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoSummarize}
+                onChange={(e) => setAutoSummarize(e.target.checked)}
+                className="rounded border-gray-600 bg-gray-900 text-accent-500 focus:ring-accent-500/50"
+              />
+              <span className="text-sm text-gray-300">Auto-summarize sessions</span>
+            </label>
 
             {project.path && (
               <div>

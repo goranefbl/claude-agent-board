@@ -82,12 +82,8 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
 
   // Session memory
   const memory = db.prepare('SELECT * FROM memory WHERE session_id = ?').get(sessionId) as Memory | undefined;
-  if (memory && (memory.summary || memory.pinned_facts !== '[]')) {
-    let memBlock = 'Session memory:';
-    if (memory.summary) memBlock += `\nSummary: ${memory.summary}`;
-    const facts = JSON.parse(memory.pinned_facts) as string[];
-    if (facts.length > 0) memBlock += `\nKey facts:\n${facts.map(f => `- ${f}`).join('\n')}`;
-    systemParts.push(memBlock);
+  if (memory?.summary) {
+    systemParts.push(`Session memory:\n${memory.summary}`);
   }
 
   // Build full message with conversation history

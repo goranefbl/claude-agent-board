@@ -1,11 +1,10 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import { v4 as uuid } from 'uuid';
+import { spawn as cpSpawn } from 'child_process';
 import { getDb } from '../db/connection.js';
 import { assembleContext } from '../claude/context.js';
 import { spawnClaude, killProcess } from '../claude/spawn.js';
 import type { WsClientMessage, WsServerMessage } from '../../../shared/types.js';
-
-const MEMORY_UPDATE_INTERVAL = 10;
 
 function send(ws: WebSocket, msg: WsServerMessage) {
   if (ws.readyState === WebSocket.OPEN) {
@@ -13,22 +12,59 @@ function send(ws: WebSocket, msg: WsServerMessage) {
   }
 }
 
-function updateMemory(sessionId: string) {
-  const db = getDb();
-  const msgCount = db.prepare('SELECT COUNT(*) as c FROM messages WHERE session_id = ?').get(sessionId) as { c: number };
-  if (msgCount.c % MEMORY_UPDATE_INTERVAL !== 0) return;
+async function autoSummarize(sessionId: string) {
+  try {
+    const db = getDb();
 
-  const messages = db.prepare(
-    'SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at DESC LIMIT 20'
-  ).all(sessionId) as { role: string; content: string }[];
+    // Check project's auto_summarize flag
+    const session = db.prepare(
+      'SELECT p.auto_summarize FROM sessions s JOIN projects p ON s.project_id = p.id WHERE s.id = ?'
+    ).get(sessionId) as { auto_summarize: number } | undefined;
+    if (!session || !session.auto_summarize) return;
 
-  const summary = messages
-    .reverse()
-    .map(m => `${m.role}: ${m.content.substring(0, 100)}`)
-    .join(' | ');
+    // Get last 20 messages
+    const messages = db.prepare(
+      'SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at DESC LIMIT 20'
+    ).all(sessionId) as { role: string; content: string }[];
+    if (messages.length < 2) return;
 
-  db.prepare("UPDATE memory SET summary = ?, updated_at = datetime('now') WHERE session_id = ?")
-    .run(`Conversation summary (${msgCount.c} messages): ${summary.substring(0, 500)}`, sessionId);
+    const transcript = messages
+      .reverse()
+      .map(m => `${m.role}: ${m.content.substring(0, 500)}`)
+      .join('\n\n');
+
+    const prompt = `Summarize this conversation for context continuity. Focus on what was discussed, decisions made, and current state. Under 200 words.\n\n${transcript}`;
+
+    const summary = await new Promise<string>((resolve, reject) => {
+      const args = [
+        '--print',
+        '--model', 'haiku',
+        '--max-turns', '1',
+        prompt,
+      ];
+
+      const child = cpSpawn('claude', args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+        env: { ...process.env, HOME: process.env.HOME || '/home/claude' },
+      });
+
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+      child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+      child.on('close', (code) => {
+        if (code === 0 && stdout.trim()) resolve(stdout.trim());
+        else reject(new Error(stderr || `exit code ${code}`));
+      });
+      child.on('error', reject);
+    });
+
+    db.prepare("UPDATE memory SET summary = ?, updated_at = datetime('now') WHERE session_id = ?")
+      .run(summary, sessionId);
+  } catch (err) {
+    console.error('[MEMORY] Auto-summarize failed:', err);
+  }
 }
 
 export function setupWebSocket(wss: WebSocketServer) {
@@ -155,8 +191,8 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
             cost: event.cost,
           });
 
-          // Auto-update memory
-          updateMemory(sessionId);
+          // Auto-update memory (fire-and-forget)
+          autoSummarize(sessionId);
 
           // Auto-title on first exchange
           const msgCount = db.prepare('SELECT COUNT(*) as c FROM messages WHERE session_id = ?').get(sessionId) as { c: number };

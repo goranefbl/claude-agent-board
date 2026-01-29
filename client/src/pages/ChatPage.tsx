@@ -60,7 +60,7 @@ export default function ChatPage() {
   const { sessions, loading: sessionsLoading, create: createSession, remove: removeSession, refresh: refreshSessions } = useSessions(activeProjectId);
   const { agents } = useAgents();
   const { messages, streaming, streamContent, toolActivities, error, lastCost, send, stop } = useChat(selectedSessionId);
-  const { memory, addFact, removeFact, update: updateMemory, refresh: refreshMemory } = useMemory(selectedSessionId);
+  const { memory, refresh: refreshMemory } = useMemory(selectedSessionId);
   const isRealProject = selectedProjectId && selectedProjectId !== GENERAL_PROJECT_ID;
   const { memory: projectMemory, update: updateProjectMemory, refresh: refreshProjectMemory } = useProjectMemory(isRealProject ? selectedProjectId : null);
   const { defaultModel, defaultThinking } = useModelDefaults();
@@ -142,9 +142,6 @@ export default function ChatPage() {
   const rightPanel = showMemory ? (
     <MemoryPanel
       memory={memory}
-      onAddFact={addFact}
-      onRemoveFact={removeFact}
-      onUpdateSummary={(summary) => updateMemory({ summary })}
       projectMemory={isRealProject ? projectMemory : undefined}
       onUpdateProjectSummary={isRealProject ? (summary) => updateProjectMemory(summary) : undefined}
     />

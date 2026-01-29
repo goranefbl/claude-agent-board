@@ -9,6 +9,7 @@ export interface Project {
   git_push_disabled: number;
   git_protected_branches: string;
   color: string;
+  auto_summarize: number;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +34,7 @@ export interface Skill {
   is_global: number;
   scope: 'global' | 'project';
   project_id: string | null;
+  project_ids: string[];
   source_url: string | null;
   icon: string;
   globs: string | null; // JSON array string

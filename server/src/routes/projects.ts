@@ -54,12 +54,12 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { name, description, path, git_origin_url, git_push_disabled, git_protected_branches, color } = req.body;
+  const { name, description, path, git_origin_url, git_push_disabled, git_protected_branches, color, auto_summarize } = req.body;
   const db = getDb();
   const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
-  db.prepare("UPDATE projects SET name = COALESCE(?, name), description = COALESCE(?, description), path = COALESCE(?, path), git_origin_url = COALESCE(?, git_origin_url), git_push_disabled = COALESCE(?, git_push_disabled), git_protected_branches = COALESCE(?, git_protected_branches), color = COALESCE(?, color), updated_at = datetime('now') WHERE id = ?")
-    .run(name ?? null, description ?? null, path ?? null, git_origin_url ?? null, git_push_disabled ?? null, git_protected_branches ?? null, color ?? null, req.params.id);
+  db.prepare("UPDATE projects SET name = COALESCE(?, name), description = COALESCE(?, description), path = COALESCE(?, path), git_origin_url = COALESCE(?, git_origin_url), git_push_disabled = COALESCE(?, git_push_disabled), git_protected_branches = COALESCE(?, git_protected_branches), color = COALESCE(?, color), auto_summarize = COALESCE(?, auto_summarize), updated_at = datetime('now') WHERE id = ?")
+    .run(name ?? null, description ?? null, path ?? null, git_origin_url ?? null, git_push_disabled ?? null, git_protected_branches ?? null, color ?? null, auto_summarize ?? null, req.params.id);
   res.json(db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id));
 });
 
