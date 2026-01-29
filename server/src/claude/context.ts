@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection.js';
-import type { Skill, Memory, Message } from '../../../shared/types.js';
+import type { Skill, Memory, Message, PermissionMode } from '../../../shared/types.js';
 
 const MAX_HISTORY = 20;
 
@@ -12,7 +12,19 @@ interface ContextResult {
   disallowedTools?: string[];
 }
 
-export function assembleContext(sessionId: string, userMessage: string, modelOverride?: string): ContextResult {
+// Read-only tools for Explore mode
+const EXPLORE_ALLOWED_TOOLS = [
+  'Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Task',
+  'mcp__chrome-devtools__take_screenshot',
+  'mcp__chrome-devtools__take_snapshot',
+  'mcp__chrome-devtools__list_pages',
+  'mcp__chrome-devtools__list_network_requests',
+  'mcp__chrome-devtools__list_console_messages',
+  'mcp__chrome-devtools__get_network_request',
+  'mcp__chrome-devtools__get_console_message',
+];
+
+export function assembleContext(sessionId: string, userMessage: string, modelOverride?: string, mode?: PermissionMode): ContextResult {
   const db = getDb();
 
   // Get agent info + project path
@@ -103,8 +115,20 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
   // Tool configuration from settings
   const allowedToolsSetting = db.prepare("SELECT value FROM settings WHERE key = 'allowed_tools'").get() as { value: string } | undefined;
   const disallowedToolsSetting = db.prepare("SELECT value FROM settings WHERE key = 'disallowed_tools'").get() as { value: string } | undefined;
-  const allowedTools = allowedToolsSetting ? JSON.parse(allowedToolsSetting.value) as string[] : undefined;
-  const disallowedTools = disallowedToolsSetting ? JSON.parse(disallowedToolsSetting.value) as string[] : undefined;
+  let allowedTools = allowedToolsSetting ? JSON.parse(allowedToolsSetting.value) as string[] : undefined;
+  let disallowedTools = disallowedToolsSetting ? JSON.parse(disallowedToolsSetting.value) as string[] : undefined;
+
+  // Apply permission mode
+  const effectiveMode = mode || 'execute';
+  if (effectiveMode === 'explore') {
+    // Override tool settings — only allow read-only tools
+    allowedTools = EXPLORE_ALLOWED_TOOLS;
+    disallowedTools = undefined;
+  } else if (effectiveMode === 'ask') {
+    // Add system prompt instruction to confirm before edits
+    systemParts.push(`IMPORTANT: You are in "Ask" mode. Before making ANY file changes (writing, editing, creating, or deleting files), you MUST first describe what you plan to change and ask the user for explicit confirmation. Do not use Write, Edit, Bash (for file modifications), or NotebookEdit tools without first getting user approval. Read-only operations do not require confirmation.`);
+  }
+  // 'execute' mode: no restrictions (current default behavior)
 
   // Determine model: per-message override > settings default > agent model
   const defaultModelSetting = db.prepare("SELECT value FROM settings WHERE key = 'default_model'").get() as { value: string } | undefined;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../api/http';
 import { wsClient } from '../api/ws';
-import type { Message, WsServerMessage } from '../../../shared/types';
+import type { Message, WsServerMessage, PermissionMode } from '../../../shared/types';
 
 interface ToolActivity {
   type: 'use' | 'result';
@@ -90,7 +90,7 @@ export function useChat(sessionId: string | null) {
     return unsub;
   }, [sessionId]);
 
-  const send = useCallback((content: string, images?: string[], model?: string, thinking?: boolean) => {
+  const send = useCallback((content: string, images?: string[], model?: string, thinking?: boolean, mode?: PermissionMode) => {
     if (!sessionId || streaming) return;
     setError(null);
     setStreaming(true);
@@ -109,7 +109,7 @@ export function useChat(sessionId: string | null) {
     };
     setMessages(prev => [...prev, optimistic]);
 
-    wsClient.send({ type: 'chat:send', sessionId, content, images, model, thinking });
+    wsClient.send({ type: 'chat:send', sessionId, content, images, model, thinking, mode });
   }, [sessionId, streaming]);
 
   const stop = useCallback(() => {

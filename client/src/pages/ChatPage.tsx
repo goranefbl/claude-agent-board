@@ -16,18 +16,20 @@ import MemoryPanel from '../components/memory/MemoryPanel';
 import SkillToggleList from '../components/skills/SkillToggleList';
 import FileExplorer from '../components/files/FileExplorer';
 import SourceControl from '../components/git/SourceControl';
-import type { SessionStatus } from '../../../shared/types';
+import type { SessionStatus, PermissionMode } from '../../../shared/types';
 
 function useModelDefaults() {
   const [defaultModel, setDefaultModel] = useState<string | undefined>();
   const [defaultThinking, setDefaultThinking] = useState<boolean | undefined>();
+  const [defaultMode, setDefaultMode] = useState<PermissionMode | undefined>();
   useEffect(() => {
     api.get<Record<string, any>>('/settings').then((data) => {
       if (data.default_model?.value) setDefaultModel(data.default_model.value);
       if (data.default_thinking?.value) setDefaultThinking(data.default_thinking.value === 'true');
+      if (data.default_mode?.value) setDefaultMode(data.default_mode.value as PermissionMode);
     }).catch(() => {});
   }, []);
-  return { defaultModel, defaultThinking };
+  return { defaultModel, defaultThinking, defaultMode };
 }
 
 const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
@@ -63,7 +65,7 @@ export default function ChatPage() {
   const { memory, refresh: refreshMemory } = useMemory(selectedSessionId);
   const isRealProject = selectedProjectId && selectedProjectId !== GENERAL_PROJECT_ID;
   const { memory: projectMemory, update: updateProjectMemory, refresh: refreshProjectMemory } = useProjectMemory(isRealProject ? selectedProjectId : null);
-  const { defaultModel, defaultThinking } = useModelDefaults();
+  const { defaultModel, defaultThinking, defaultMode } = useModelDefaults();
   const { skills: sessionSkills, toggle: toggleSkill } = useSessionSkills(selectedSessionId, selectedProjectId);
 
   // Check if current project has a path (file explorer only for real projects)
@@ -196,6 +198,7 @@ export default function ChatPage() {
           hasSession={!!selectedSessionId}
           defaultModel={defaultModel}
           defaultThinking={defaultThinking}
+          defaultMode={defaultMode}
         />
       </div>
       {activeView === 'files' && hasProject && selectedProjectId && (

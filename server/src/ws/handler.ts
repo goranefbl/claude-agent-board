@@ -4,7 +4,7 @@ import { spawn as cpSpawn } from 'child_process';
 import { getDb } from '../db/connection.js';
 import { assembleContext } from '../claude/context.js';
 import { spawnClaude, killProcess } from '../claude/spawn.js';
-import type { WsClientMessage, WsServerMessage } from '../../../shared/types.js';
+import type { WsClientMessage, WsServerMessage, PermissionMode } from '../../../shared/types.js';
 
 function send(ws: WebSocket, msg: WsServerMessage) {
   if (ws.readyState === WebSocket.OPEN) {
@@ -81,9 +81,9 @@ export function setupWebSocket(wss: WebSocketServer) {
       }
 
       if (msg.type === 'chat:send') {
-        console.log(`[WS] chat:send session=${msg.sessionId} content="${msg.content.substring(0, 50)}" images=${(msg.images || []).length} model=${msg.model || 'default'} thinking=${!!msg.thinking}`);
+        console.log(`[WS] chat:send session=${msg.sessionId} content="${msg.content.substring(0, 50)}" images=${(msg.images || []).length} model=${msg.model || 'default'} thinking=${!!msg.thinking} mode=${msg.mode || 'execute'}`);
         try {
-          handleChatSend(ws, msg.sessionId, msg.content, msg.images, msg.model, msg.thinking);
+          handleChatSend(ws, msg.sessionId, msg.content, msg.images, msg.model, msg.thinking, msg.mode);
         } catch (err: any) {
           console.error(`[WS] handleChatSend error:`, err);
           send(ws, { type: 'chat:error', sessionId: msg.sessionId, error: err.message });
@@ -96,7 +96,7 @@ export function setupWebSocket(wss: WebSocketServer) {
   });
 }
 
-function handleChatSend(ws: WebSocket, sessionId: string, content: string, images?: string[], model?: string, thinking?: boolean) {
+function handleChatSend(ws: WebSocket, sessionId: string, content: string, images?: string[], model?: string, thinking?: boolean, mode?: PermissionMode) {
   const db = getDb();
 
   // Save user message
@@ -118,7 +118,7 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
   // Assemble context
   let ctx: ReturnType<typeof assembleContext>;
   try {
-    ctx = assembleContext(sessionId, claudeContent, model);
+    ctx = assembleContext(sessionId, claudeContent, model, mode);
     console.log(`[CHAT] Context assembled: model=${ctx.model}, systemPrompt=${ctx.systemPrompt.substring(0, 80)}...`);
     console.log(`[CHAT] Full message length: ${ctx.fullMessage.length}`);
   } catch (err: any) {

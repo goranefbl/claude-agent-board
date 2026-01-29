@@ -44,6 +44,8 @@ export interface Skill {
 
 export type SessionStatus = 'backlog' | 'in_progress' | 'review' | 'done';
 
+export type PermissionMode = 'explore' | 'ask' | 'execute';
+
 export interface Session {
   id: string;
   project_id: string;
@@ -149,6 +151,7 @@ export interface WsSendMessage {
   images?: string[]; // file paths of uploaded images
   model?: string;    // per-message model override
   thinking?: boolean; // enable extended thinking
+  mode?: PermissionMode; // permission mode: explore, ask, execute
 }
 
 export interface WsStopMessage {

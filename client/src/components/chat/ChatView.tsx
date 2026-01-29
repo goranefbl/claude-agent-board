@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
 import StreamingIndicator from './StreamingIndicator';
 import ChatInput from './ChatInput';
-import type { Message } from '../../../../shared/types';
+import type { Message, PermissionMode } from '../../../../shared/types';
 
 interface ToolActivity {
   type: 'use' | 'result';
@@ -18,16 +18,17 @@ interface Props {
   toolActivities: ToolActivity[];
   error: string | null;
   lastCost: number | null;
-  onSend: (content: string, images?: string[], model?: string, thinking?: boolean) => void;
+  onSend: (content: string, images?: string[], model?: string, thinking?: boolean, mode?: PermissionMode) => void;
   onStop: () => void;
   hasSession: boolean;
   defaultModel?: string;
   defaultThinking?: boolean;
+  defaultMode?: PermissionMode;
 }
 
 export default function ChatView({
   messages, streaming, streamContent, toolActivities, error, lastCost,
-  onSend, onStop, hasSession, defaultModel, defaultThinking,
+  onSend, onStop, hasSession, defaultModel, defaultThinking, defaultMode,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -64,7 +65,7 @@ export default function ChatView({
           )}
         </div>
       </div>
-      <ChatInput onSend={onSend} onStop={onStop} streaming={streaming} disabled={!hasSession} defaultModel={defaultModel} defaultThinking={defaultThinking} />
+      <ChatInput onSend={onSend} onStop={onStop} streaming={streaming} disabled={!hasSession} defaultModel={defaultModel} defaultThinking={defaultThinking} defaultMode={defaultMode} />
     </div>
   );
 }

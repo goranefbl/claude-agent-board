@@ -3,8 +3,9 @@ import { api } from '../api/http';
 import Sidebar from '../components/layout/Sidebar';
 import {
   Settings, Shield, Key, Save, Eye, EyeOff, Check, X,
-  Plus, Trash2, ToggleLeft, ToggleRight, Palette, Cpu
+  Plus, Trash2, ToggleLeft, ToggleRight, Palette, Cpu, Zap, MessageSquare
 } from 'lucide-react';
+import type { PermissionMode } from '../../../shared/types';
 import { useTheme } from '../hooks/useTheme';
 import { THEME_COLORS, type ThemeColorName } from '../theme/colors';
 
@@ -54,6 +55,7 @@ export default function ConfigPage() {
   const [customTool, setCustomTool] = useState('');
   const [defaultModel, setDefaultModel] = useState('sonnet');
   const [defaultThinking, setDefaultThinking] = useState(false);
+  const [defaultMode, setDefaultMode] = useState<PermissionMode>('execute');
   const [modelSaving, setModelSaving] = useState(false);
   const [modelSaved, setModelSaved] = useState(false);
   const { color: themeColor, setColor: setThemeColor, colorNames } = useTheme();
@@ -80,6 +82,7 @@ export default function ConfigPage() {
     }
     if (data.default_model?.value) setDefaultModel(data.default_model.value);
     if (data.default_thinking?.value) setDefaultThinking(data.default_thinking.value === 'true');
+    if (data.default_mode?.value) setDefaultMode(data.default_mode.value as PermissionMode);
   }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
@@ -145,6 +148,7 @@ export default function ConfigPage() {
     try {
       await api.put('/settings/default_model', { value: defaultModel });
       await api.put('/settings/default_thinking', { value: String(defaultThinking) });
+      await api.put('/settings/default_mode', { value: defaultMode });
       setModelSaved(true);
       setTimeout(() => setModelSaved(false), 2000);
     } finally {
@@ -250,6 +254,37 @@ export default function ConfigPage() {
                   <div className="text-xs text-gray-600 mt-0.5">Extended reasoning before responding — uses more tokens but produces higher quality answers</div>
                 </div>
               </button>
+            </div>
+
+            {/* Default Mode */}
+            <div className="mb-5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Default Mode</label>
+              <div className="flex gap-2">
+                {([
+                  { value: 'execute' as PermissionMode, label: 'Execute', desc: 'Full autonomous', icon: Zap },
+                  { value: 'ask' as PermissionMode, label: 'Ask', desc: 'Confirms edits', icon: MessageSquare },
+                  { value: 'explore' as PermissionMode, label: 'Explore', desc: 'Read-only', icon: Eye },
+                ]).map(m => {
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.value}
+                      onClick={() => setDefaultMode(m.value)}
+                      className={`flex-1 px-4 py-3 rounded-lg border text-left transition-colors ${
+                        defaultMode === m.value
+                          ? 'bg-accent-600/15 border-accent-600/40 text-accent-400'
+                          : 'bg-[#161b22] border-gray-800/60 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon size={14} />
+                        <span className="text-sm font-medium">{m.label}</span>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-0.5">{m.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <button

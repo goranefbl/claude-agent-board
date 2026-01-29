@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp, Square, X, ChevronDown, Sparkles, Check } from 'lucide-react';
+import { ArrowUp, Square, X, ChevronDown, Sparkles, Check, Eye, MessageSquare, Zap } from 'lucide-react';
 import { api } from '../../api/http';
+import type { PermissionMode } from '../../../../shared/types';
 
 interface PendingImage {
   name: string;
@@ -14,29 +15,40 @@ const MODELS = [
   { value: 'opus', label: 'Opus', desc: 'Most capable, highest quality' },
 ];
 
+const MODES: { value: PermissionMode; label: string; desc: string; icon: typeof Eye }[] = [
+  { value: 'execute', label: 'Execute', desc: 'Full autonomous execution', icon: Zap },
+  { value: 'ask', label: 'Ask', desc: 'Confirms before making edits', icon: MessageSquare },
+  { value: 'explore', label: 'Explore', desc: 'Read-only, no file changes', icon: Eye },
+];
+
 interface Props {
-  onSend: (content: string, images?: string[], model?: string, thinking?: boolean) => void;
+  onSend: (content: string, images?: string[], model?: string, thinking?: boolean, mode?: PermissionMode) => void;
   onStop: () => void;
   streaming: boolean;
   disabled: boolean;
   defaultModel?: string;
   defaultThinking?: boolean;
+  defaultMode?: PermissionMode;
 }
 
-export default function ChatInput({ onSend, onStop, streaming, disabled, defaultModel, defaultThinking }: Props) {
+export default function ChatInput({ onSend, onStop, streaming, disabled, defaultModel, defaultThinking, defaultMode }: Props) {
   const [input, setInput] = useState('');
   const [images, setImages] = useState<PendingImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [model, setModel] = useState(defaultModel || 'sonnet');
   const [thinking, setThinking] = useState(defaultThinking || false);
+  const [mode, setMode] = useState<PermissionMode>(defaultMode || 'execute');
   const [showModelMenu, setShowModelMenu] = useState(false);
+  const [showModeMenu, setShowModeMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
 
   // Sync defaults when they change
   useEffect(() => { if (defaultModel) setModel(defaultModel); }, [defaultModel]);
   useEffect(() => { if (defaultThinking !== undefined) setThinking(defaultThinking); }, [defaultThinking]);
+  useEffect(() => { if (defaultMode) setMode(defaultMode); }, [defaultMode]);
 
   useEffect(() => {
     if (!streaming && !disabled && textareaRef.current) {
@@ -54,6 +66,17 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
     if (showModelMenu) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showModelMenu]);
+
+  // Close mode menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
+        setShowModeMenu(false);
+      }
+    };
+    if (showModeMenu) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showModeMenu]);
 
   const addImageFiles = useCallback(async (files: File[]) => {
     const imageFiles = files.filter(f => f.type.startsWith('image/'));
@@ -101,7 +124,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
       setUploading(false);
     }
 
-    onSend(input.trim() || 'See attached image(s)', imagePaths, model, thinking);
+    onSend(input.trim() || 'See attached image(s)', imagePaths, model, thinking, mode);
     setInput('');
     // Clean up previews
     images.forEach(img => URL.revokeObjectURL(img.preview));
@@ -156,6 +179,8 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
   const canSend = (input.trim() || images.length > 0) && !disabled && !uploading;
   const currentModel = MODELS.find(m => m.value === model) || MODELS[0];
   const buttonLabel = thinking ? `${currentModel.label} (thinking)` : currentModel.label;
+  const currentMode = MODES.find(m => m.value === mode) || MODES[0];
+  const ModeIcon = currentMode.icon;
 
   return (
     <div
@@ -263,6 +288,53 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
                         )}
                       </button>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Mode selector */}
+              <div className="relative" ref={modeMenuRef}>
+                <button
+                  onClick={() => setShowModeMenu(!showModeMenu)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    mode === 'explore'
+                      ? 'text-blue-400 hover:bg-blue-500/10'
+                      : mode === 'ask'
+                        ? 'text-yellow-400 hover:bg-yellow-500/10'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+                  }`}
+                >
+                  <ModeIcon size={12} />
+                  {currentMode.label}
+                  <ChevronDown size={12} />
+                </button>
+                {showModeMenu && (
+                  <div className="absolute bottom-full left-0 mb-1 bg-[#1c2129] border border-gray-700/60 rounded-lg shadow-xl z-50 min-w-[240px] py-1">
+                    {MODES.map((m) => {
+                      const Icon = m.icon;
+                      return (
+                        <button
+                          key={m.value}
+                          onClick={() => { setMode(m.value); setShowModeMenu(false); }}
+                          className={`w-full text-left px-3 py-2.5 transition-colors flex items-center gap-3 ${
+                            mode === m.value
+                              ? 'bg-accent-600/15'
+                              : 'hover:bg-gray-800/60'
+                          }`}
+                        >
+                          <Icon size={14} className={mode === m.value ? 'text-accent-400' : 'text-gray-500'} />
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm font-medium ${mode === m.value ? 'text-accent-400' : 'text-gray-200'}`}>
+                              {m.label}
+                            </div>
+                            <div className="text-[11px] text-gray-500 mt-0.5">{m.desc}</div>
+                          </div>
+                          {mode === m.value && (
+                            <Check size={14} className="text-accent-400 flex-shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
