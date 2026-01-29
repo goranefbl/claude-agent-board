@@ -35,7 +35,7 @@ function statusLabel(s: string): string {
 }
 
 interface KanbanCardProps {
-  session: Session & { project_name?: string };
+  session: Session & { project_name?: string; project_color?: string };
   onMove: (id: string, status: SessionStatus) => void;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onClick: (id: string) => void;
@@ -62,7 +62,13 @@ function KanbanCard({ session, onMove, onDragStart, onClick }: KanbanCardProps) 
             {session.title}
           </div>
           {!isGeneral && session.project_name && (
-            <div className="text-xs text-gray-500 mt-1 truncate">{session.project_name}</div>
+            <div className="flex items-center gap-1.5 mt-1 min-w-0">
+              <div
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${!session.project_color ? 'bg-gray-600' : ''}`}
+                style={session.project_color ? { backgroundColor: session.project_color } : undefined}
+              />
+              <span className="text-xs text-gray-500 truncate">{session.project_name}</span>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -95,7 +101,7 @@ function KanbanCard({ session, onMove, onDragStart, onClick }: KanbanCardProps) 
 }
 
 export default function MissionControlPage() {
-  const [sessions, setSessions] = useState<(Session & { project_name?: string })[]>([]);
+  const [sessions, setSessions] = useState<(Session & { project_name?: string; project_color?: string })[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activity, setActivity] = useState<ActivityLog[]>([]);
   const [filterProject, setFilterProject] = useState<string>('all');
@@ -109,12 +115,14 @@ export default function MissionControlPage() {
       api.get<Project[]>('/projects'),
       api.get<ActivityLog[]>('/activity'),
     ]);
-    // Attach project names to sessions
-    const projMap = new Map(projData.map(p => [p.id, p.name]));
-    projMap.set(GENERAL_PROJECT_ID, 'General');
+    // Attach project names and colors to sessions
+    const projMap = new Map(projData.map(p => [p.id, p]));
     const enriched = sessData
       .filter(s => s.project_id !== GENERAL_PROJECT_ID)
-      .map(s => ({ ...s, project_name: projMap.get(s.project_id) || '' }));
+      .map(s => {
+        const proj = projMap.get(s.project_id);
+        return { ...s, project_name: proj?.name || '', project_color: proj?.color || '' };
+      });
     setSessions(enriched);
     setProjects(projData);
     setActivity(actData);
@@ -174,7 +182,7 @@ export default function MissionControlPage() {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/50">
           <div className="flex items-center gap-3">
             <LayoutGrid size={20} className="text-accent-400" />
-            <h1 className="text-lg font-bold text-white">Mission Control</h1>
+            <h1 className="text-lg font-bold text-white">Tasks</h1>
           </div>
           <div className="flex items-center gap-3">
             {/* Project Filter */}

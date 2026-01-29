@@ -17,6 +17,18 @@ import FileExplorer from '../components/files/FileExplorer';
 import SourceControl from '../components/git/SourceControl';
 import type { SessionStatus } from '../../../shared/types';
 
+function useModelDefaults() {
+  const [defaultModel, setDefaultModel] = useState<string | undefined>();
+  const [defaultThinking, setDefaultThinking] = useState<boolean | undefined>();
+  useEffect(() => {
+    api.get<Record<string, any>>('/settings').then((data) => {
+      if (data.default_model?.value) setDefaultModel(data.default_model.value);
+      if (data.default_thinking?.value) setDefaultThinking(data.default_thinking.value === 'true');
+    }).catch(() => {});
+  }, []);
+  return { defaultModel, defaultThinking };
+}
+
 const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
 
 export default function ChatPage() {
@@ -48,6 +60,7 @@ export default function ChatPage() {
   const { agents } = useAgents();
   const { messages, streaming, streamContent, toolActivities, error, lastCost, send, stop } = useChat(selectedSessionId);
   const { memory, addFact, removeFact, update: updateMemory, refresh: refreshMemory } = useMemory(selectedSessionId);
+  const { defaultModel, defaultThinking } = useModelDefaults();
   const { skills: sessionSkills, toggle: toggleSkill } = useSessionSkills(selectedSessionId, selectedProjectId);
 
   // Check if current project has a path (file explorer only for real projects)
@@ -143,7 +156,6 @@ export default function ChatPage() {
           onSelectSession={setSelectedSessionId}
           onCreateProject={handleCreateProject}
           onCreateSession={handleCreateSession}
-          onDeleteProject={handleDeleteProject}
           onDeleteSession={handleDeleteSession}
         />
       }
@@ -177,6 +189,8 @@ export default function ChatPage() {
           onSend={send}
           onStop={stop}
           hasSession={!!selectedSessionId}
+          defaultModel={defaultModel}
+          defaultThinking={defaultThinking}
         />
       </div>
       {activeView === 'files' && hasProject && selectedProjectId && (

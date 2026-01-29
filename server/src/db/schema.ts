@@ -25,6 +25,9 @@ function migrate(db: ReturnType<typeof getDb>) {
   if (!projCols.some(c => c.name === 'git_protected_branches')) {
     db.exec("ALTER TABLE projects ADD COLUMN git_protected_branches TEXT NOT NULL DEFAULT ''");
   }
+  if (!projCols.some(c => c.name === 'color')) {
+    db.exec("ALTER TABLE projects ADD COLUMN color TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 export function createSchema() {

@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
 import { api } from '../api/http';
 import type { Project } from '../../../shared/types';
+
+const COLOR_PALETTE = [
+  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4',
+  '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e',
+];
 
 export default function ProjectSettingsPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +18,7 @@ export default function ProjectSettingsPage() {
   const [description, setDescription] = useState('');
   const [gitPushDisabled, setGitPushDisabled] = useState(false);
   const [gitProtectedBranches, setGitProtectedBranches] = useState('');
+  const [color, setColor] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -23,6 +30,7 @@ export default function ProjectSettingsPage() {
       setDescription(p.description || '');
       setGitPushDisabled(!!p.git_push_disabled);
       setGitProtectedBranches(p.git_protected_branches || '');
+      setColor(p.color || '');
     }).catch(() => navigate('/chat'));
   }, [id, navigate]);
 
@@ -35,6 +43,7 @@ export default function ProjectSettingsPage() {
       const updated = await api.put<Project>(`/projects/${id}`, {
         name,
         description,
+        color,
         git_push_disabled: gitPushDisabled ? 1 : 0,
         git_protected_branches: gitProtectedBranches,
       });
@@ -91,6 +100,36 @@ export default function ProjectSettingsPage() {
                 rows={3}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 resize-none"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Color</label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setColor('')}
+                  className={`w-7 h-7 rounded-full border-2 bg-gray-600 flex items-center justify-center transition-colors ${
+                    color === '' ? 'border-white' : 'border-transparent hover:border-gray-500'
+                  }`}
+                  title="None"
+                >
+                  {color === '' && <Check size={14} className="text-white" />}
+                </button>
+                {COLOR_PALETTE.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      color === c ? 'border-white' : 'border-transparent hover:border-gray-500'
+                    }`}
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  >
+                    {color === c && <Check size={14} className="text-white" />}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {project.path && (

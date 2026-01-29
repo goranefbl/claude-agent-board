@@ -45,9 +45,9 @@ export function setupWebSocket(wss: WebSocketServer) {
       }
 
       if (msg.type === 'chat:send') {
-        console.log(`[WS] chat:send session=${msg.sessionId} content="${msg.content.substring(0, 50)}"`);
+        console.log(`[WS] chat:send session=${msg.sessionId} content="${msg.content.substring(0, 50)}" images=${(msg.images || []).length} model=${msg.model || 'default'} thinking=${!!msg.thinking}`);
         try {
-          handleChatSend(ws, msg.sessionId, msg.content);
+          handleChatSend(ws, msg.sessionId, msg.content, msg.images, msg.model, msg.thinking);
         } catch (err: any) {
           console.error(`[WS] handleChatSend error:`, err);
           send(ws, { type: 'chat:error', sessionId: msg.sessionId, error: err.message });
@@ -60,7 +60,7 @@ export function setupWebSocket(wss: WebSocketServer) {
   });
 }
 
-function handleChatSend(ws: WebSocket, sessionId: string, content: string) {
+function handleChatSend(ws: WebSocket, sessionId: string, content: string, images?: string[], model?: string, thinking?: boolean) {
   const db = getDb();
 
   // Save user message
@@ -72,10 +72,17 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string) {
   // Update session timestamp
   db.prepare("UPDATE sessions SET updated_at = datetime('now') WHERE id = ?").run(sessionId);
 
+  // Build message for Claude — append image references if present
+  let claudeContent = content;
+  if (images && images.length > 0) {
+    const imageRefs = images.map(p => `[Attached image: ${p}]`).join('\n');
+    claudeContent = `${content}\n\n${imageRefs}\n\nThe user attached ${images.length} image(s). Read them using the file read tool to see what was shared.`;
+  }
+
   // Assemble context
   let ctx: ReturnType<typeof assembleContext>;
   try {
-    ctx = assembleContext(sessionId, content);
+    ctx = assembleContext(sessionId, claudeContent, model);
     console.log(`[CHAT] Context assembled: model=${ctx.model}, systemPrompt=${ctx.systemPrompt.substring(0, 80)}...`);
     console.log(`[CHAT] Full message length: ${ctx.fullMessage.length}`);
   } catch (err: any) {
@@ -95,6 +102,9 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string) {
     {
       systemPrompt: ctx.systemPrompt,
       model: ctx.model,
+      thinking: !!thinking,
+      allowedTools: ctx.allowedTools,
+      disallowedTools: ctx.disallowedTools,
     },
     (event) => {
       switch (event.type) {

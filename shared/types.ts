@@ -7,6 +7,7 @@ export interface Project {
   path: string | null;
   git_push_disabled: number;
   git_protected_branches: string;
+  color: string;
   created_at: string;
   updated_at: string;
 }
@@ -142,6 +143,9 @@ export interface WsSendMessage {
   type: 'chat:send';
   sessionId: string;
   content: string;
+  images?: string[]; // file paths of uploaded images
+  model?: string;    // per-message model override
+  thinking?: boolean; // enable extended thinking
 }
 
 export interface WsStopMessage {

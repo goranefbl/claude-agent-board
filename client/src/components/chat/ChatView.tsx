@@ -18,14 +18,16 @@ interface Props {
   toolActivities: ToolActivity[];
   error: string | null;
   lastCost: number | null;
-  onSend: (content: string) => void;
+  onSend: (content: string, images?: string[], model?: string, thinking?: boolean) => void;
   onStop: () => void;
   hasSession: boolean;
+  defaultModel?: string;
+  defaultThinking?: boolean;
 }
 
 export default function ChatView({
   messages, streaming, streamContent, toolActivities, error, lastCost,
-  onSend, onStop, hasSession,
+  onSend, onStop, hasSession, defaultModel, defaultThinking,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +64,7 @@ export default function ChatView({
           )}
         </div>
       </div>
-      <ChatInput onSend={onSend} onStop={onStop} streaming={streaming} disabled={!hasSession} />
+      <ChatInput onSend={onSend} onStop={onStop} streaming={streaming} disabled={!hasSession} defaultModel={defaultModel} defaultThinking={defaultThinking} />
     </div>
   );
 }

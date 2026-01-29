@@ -8,9 +8,11 @@ interface ContextResult {
   model: string;
   /** Full user message with conversation history prepended */
   fullMessage: string;
+  allowedTools?: string[];
+  disallowedTools?: string[];
 }
 
-export function assembleContext(sessionId: string, userMessage: string): ContextResult {
+export function assembleContext(sessionId: string, userMessage: string, modelOverride?: string): ContextResult {
   const db = getDb();
 
   // Get agent info + project path
@@ -53,6 +55,13 @@ export function assembleContext(sessionId: string, userMessage: string): Context
   envLines.push('- When creating web projects, always provide the preview URL to the user');
   systemParts.push('Environment info:\n' + envLines.join('\n'));
 
+  // Style instructions
+  systemParts.push(`Response style:
+- Do not use emojis, emoticons, or decorative icons in your responses
+- Write in plain, direct prose — no bullet-point-heavy formatting unless listing specific items
+- Use proper paragraph spacing between ideas
+- Keep responses conversational and natural, not overly structured`);
+
   // Enabled skills
   const skills = db.prepare(`
     SELECT sk.name, sk.prompt FROM skills sk
@@ -89,9 +98,21 @@ export function assembleContext(sessionId: string, userMessage: string): Context
   }
   messageParts.push(userMessage);
 
+  // Tool configuration from settings
+  const allowedToolsSetting = db.prepare("SELECT value FROM settings WHERE key = 'allowed_tools'").get() as { value: string } | undefined;
+  const disallowedToolsSetting = db.prepare("SELECT value FROM settings WHERE key = 'disallowed_tools'").get() as { value: string } | undefined;
+  const allowedTools = allowedToolsSetting ? JSON.parse(allowedToolsSetting.value) as string[] : undefined;
+  const disallowedTools = disallowedToolsSetting ? JSON.parse(disallowedToolsSetting.value) as string[] : undefined;
+
+  // Determine model: per-message override > settings default > agent model
+  const defaultModelSetting = db.prepare("SELECT value FROM settings WHERE key = 'default_model'").get() as { value: string } | undefined;
+  const resolvedModel = modelOverride || defaultModelSetting?.value || session.model || 'sonnet';
+
   return {
     systemPrompt: systemParts.join('\n\n'),
-    model: session.model || 'sonnet',
+    model: resolvedModel,
     fullMessage: messageParts.join('\n'),
+    allowedTools: allowedTools?.length ? allowedTools : undefined,
+    disallowedTools: disallowedTools?.length ? disallowedTools : undefined,
   };
 }

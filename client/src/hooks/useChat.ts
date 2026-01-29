@@ -90,7 +90,7 @@ export function useChat(sessionId: string | null) {
     return unsub;
   }, [sessionId]);
 
-  const send = useCallback((content: string) => {
+  const send = useCallback((content: string, images?: string[], model?: string, thinking?: boolean) => {
     if (!sessionId || streaming) return;
     setError(null);
     setStreaming(true);
@@ -109,7 +109,7 @@ export function useChat(sessionId: string | null) {
     };
     setMessages(prev => [...prev, optimistic]);
 
-    wsClient.send({ type: 'chat:send', sessionId, content });
+    wsClient.send({ type: 'chat:send', sessionId, content, images, model, thinking });
   }, [sessionId, streaming]);
 
   const stop = useCallback(() => {

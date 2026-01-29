@@ -3,7 +3,7 @@ import { api } from '../api/http';
 import Sidebar from '../components/layout/Sidebar';
 import {
   Settings, Shield, Key, Save, Eye, EyeOff, Check, X,
-  Plus, Trash2, ToggleLeft, ToggleRight, Palette
+  Plus, Trash2, ToggleLeft, ToggleRight, Palette, Cpu
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { THEME_COLORS, type ThemeColorName } from '../theme/colors';
@@ -52,6 +52,10 @@ export default function ConfigPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [customTool, setCustomTool] = useState('');
+  const [defaultModel, setDefaultModel] = useState('sonnet');
+  const [defaultThinking, setDefaultThinking] = useState(false);
+  const [modelSaving, setModelSaving] = useState(false);
+  const [modelSaved, setModelSaved] = useState(false);
   const { color: themeColor, setColor: setThemeColor, colorNames } = useTheme();
 
   const fetchSettings = useCallback(async () => {
@@ -74,6 +78,8 @@ export default function ConfigPage() {
         }
       }
     }
+    if (data.default_model?.value) setDefaultModel(data.default_model.value);
+    if (data.default_thinking?.value) setDefaultThinking(data.default_thinking.value === 'true');
   }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
@@ -133,6 +139,19 @@ export default function ConfigPage() {
     setCustomTool('');
   };
 
+  const handleSaveModel = async () => {
+    setModelSaving(true);
+    setModelSaved(false);
+    try {
+      await api.put('/settings/default_model', { value: defaultModel });
+      await api.put('/settings/default_thinking', { value: String(defaultThinking) });
+      setModelSaved(true);
+      setTimeout(() => setModelSaved(false), 2000);
+    } finally {
+      setModelSaving(false);
+    }
+  };
+
   const activeList = toolMode === 'allowed' ? allowedTools : disallowedTools;
   const activeToggle = toolMode === 'allowed' ? 'allowed' : 'disallowed';
 
@@ -177,6 +196,70 @@ export default function ConfigPage() {
                 );
               })}
             </div>
+          </section>
+
+          {/* Model Defaults */}
+          <section className="mb-10">
+            <div className="flex items-center gap-2 mb-4">
+              <Cpu size={16} className="text-gray-400" />
+              <h2 className="text-base font-semibold text-white">Model</h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-5">
+              Set the default model and thinking mode for new messages. These can be overridden per-message in the chat input.
+            </p>
+
+            {/* Model selection */}
+            <div className="mb-5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Default Model</label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'haiku', label: 'Haiku', desc: 'Fast & light' },
+                  { value: 'sonnet', label: 'Sonnet', desc: 'Balanced' },
+                  { value: 'opus', label: 'Opus', desc: 'Most capable' },
+                ].map(m => (
+                  <button
+                    key={m.value}
+                    onClick={() => setDefaultModel(m.value)}
+                    className={`flex-1 px-4 py-3 rounded-lg border text-left transition-colors ${
+                      defaultModel === m.value
+                        ? 'bg-accent-600/15 border-accent-600/40 text-accent-400'
+                        : 'bg-[#161b22] border-gray-800/60 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                    }`}
+                  >
+                    <div className="text-sm font-medium">{m.label}</div>
+                    <div className="text-xs text-gray-600 mt-0.5">{m.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Thinking toggle */}
+            <div className="mb-5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Extended Thinking</label>
+              <button
+                onClick={() => setDefaultThinking(!defaultThinking)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg border w-full text-left transition-colors ${
+                  defaultThinking
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    : 'bg-[#161b22] border-gray-800/60 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                }`}
+              >
+                {defaultThinking ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                <div>
+                  <div className="text-sm font-medium">{defaultThinking ? 'Thinking Enabled' : 'Thinking Disabled'}</div>
+                  <div className="text-xs text-gray-600 mt-0.5">Extended reasoning before responding — uses more tokens but produces higher quality answers</div>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={handleSaveModel}
+              disabled={modelSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded-md text-sm text-white font-medium transition-colors"
+            >
+              {modelSaved ? <Check size={14} /> : <Save size={14} />}
+              {modelSaved ? 'Saved' : modelSaving ? 'Saving...' : 'Save Model Config'}
+            </button>
           </section>
 
           {/* Tools Configuration */}

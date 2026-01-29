@@ -107,7 +107,7 @@ function handleToolCall(id: number | string, params: { name: string; arguments?:
         const projectPath = join(PROJECTS_ROOT, slug);
         if (!existsSync(projectPath)) mkdirSync(projectPath, { recursive: true });
 
-        db.prepare('INSERT INTO projects (id, name, description, path) VALUES (?, ?, ?, ?)')
+        db.prepare('INSERT INTO projects (id, name, description, path, git_push_disabled) VALUES (?, ?, ?, ?, 1)')
           .run(projectId, projectName, description, projectPath);
 
         return success(id, `Project created successfully.\n\nID: ${projectId}\nName: ${projectName}\nPath: ${projectPath}\n\nThe project folder has been created and registered in the system. It will appear in the sidebar after a page refresh.`);
@@ -138,7 +138,7 @@ function handleToolCall(id: number | string, params: { name: string; arguments?:
           throw new Error(`Git clone failed: ${err.stderr?.toString() || err.message}`);
         }
 
-        db.prepare('INSERT INTO projects (id, name, description, path) VALUES (?, ?, ?, ?)')
+        db.prepare('INSERT INTO projects (id, name, description, path, git_push_disabled) VALUES (?, ?, ?, ?, 1)')
           .run(projectId, projectName, description, projectPath);
 
         return success(id, `Project created and repository cloned successfully.\n\nID: ${projectId}\nName: ${projectName}\nPath: ${projectPath}\nCloned from: ${gitUrl}\n\nThe project will appear in the sidebar after a page refresh.`);

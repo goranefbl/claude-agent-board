@@ -17,7 +17,6 @@ interface Props {
   onSelectSession?: (id: string) => void;
   onCreateProject?: (name: string) => void;
   onCreateSession?: () => void;
-  onDeleteProject?: (id: string) => void;
   onDeleteSession?: (id: string) => void;
 }
 
@@ -54,7 +53,7 @@ function NavItem({ to, icon, label, active }: { to: string; icon: React.ReactNod
 export default function Sidebar({
   projects: externalProjects, sessions = [], selectedProjectId, selectedSessionId,
   onSelectProject, onSelectSession, onCreateProject, onCreateSession,
-  onDeleteProject, onDeleteSession,
+  onDeleteSession,
 }: Props) {
   const [newProjectName, setNewProjectName] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -88,17 +87,6 @@ export default function Sidebar({
     setShowForm(false);
   };
 
-  const handleDeleteProject = (id: string, name: string) => {
-    if (!window.confirm(`Delete "${name}"? All sessions and messages in this project will be permanently lost.`)) return;
-    if (onDeleteProject) {
-      onDeleteProject(id);
-    } else {
-      api.del(`/projects/${id}`).then(() => {
-        setInternalProjects((prev) => prev.filter((p) => p.id !== id));
-      });
-    }
-  };
-
   const handleProjectClick = (id: string) => {
     if (onSelectProject) {
       onSelectProject(id);
@@ -115,7 +103,14 @@ export default function Sidebar({
   return (
     <aside className="w-64 bg-[#0d1117] border-r border-gray-800/50 flex flex-col h-full select-none">
       <div className="px-4 py-4 border-b border-gray-800/50">
-        <Link to="/chat" className="flex items-center gap-2">
+        <Link to="/chat" className="flex items-center gap-2.5">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="16 16 68 68" className="w-5 h-5 flex-shrink-0">
+            <rect x="16" y="16" width="18" height="18" fill="currentColor" />
+            <rect x="66" y="16" width="18" height="18" fill="currentColor" />
+            <rect x="16" y="66" width="18" height="18" fill="currentColor" />
+            <rect x="66" y="66" width="18" height="18" fill="currentColor" />
+            <circle cx="50" cy="50" r="9" fill="currentColor" />
+          </svg>
           <span className="text-base font-bold text-white tracking-tight">WPGensHQ</span>
         </Link>
       </div>
@@ -124,7 +119,7 @@ export default function Sidebar({
         {/* CHAT section */}
         <SectionHeader label="Chat" />
         <NavItem to="/chat" icon={<MessageCircle size={16} />} label="Chat" active={isChatActive} />
-        <NavItem to="/board" icon={<LayoutGrid size={16} />} label="Mission Control" active={location.pathname === '/board'} />
+        <NavItem to="/board" icon={<LayoutGrid size={16} />} label="Tasks" active={location.pathname === '/board'} />
 
         {/* PROJECTS section — always shown */}
         <SectionHeader
@@ -158,7 +153,13 @@ export default function Sidebar({
               {selectedProjectId === p.id && (
                 <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-accent-500" />
               )}
-              <span className="truncate pl-1">{p.name}</span>
+              <div className="flex items-center gap-2 min-w-0 pl-1">
+                <div
+                  className={`w-2 h-2 rounded-full flex-shrink-0 ${!p.color ? 'bg-gray-600' : ''}`}
+                  style={p.color ? { backgroundColor: p.color } : undefined}
+                />
+                <span className="truncate">{p.name}</span>
+              </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => {
@@ -169,15 +170,6 @@ export default function Sidebar({
                   title="Project settings"
                 >
                   <Settings2 size={13} />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteProject(p.id, p.name);
-                  }}
-                  className="text-gray-600 hover:text-red-400 transition-colors"
-                >
-                  <Trash2 size={13} />
                 </button>
               </div>
             </div>

@@ -30,7 +30,7 @@ seed();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 
 // Auth routes (before middleware)
 app.use('/api/auth', authRouter);
@@ -50,6 +50,20 @@ app.use('/api/files', filesRouter);
 app.use('/api/git', gitRouter);
 app.use('/api/mcps', mcpsRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+// Image upload for chat — saves base64 image to temp file, returns path
+const UPLOAD_DIR = '/tmp/chat-images';
+app.post('/api/upload/image', (req, res) => {
+  const { data, filename } = req.body; // data = base64 string, filename = original name
+  if (!data) return res.status(400).json({ error: 'data (base64) required' });
+  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  const ext = (filename || 'image.png').split('.').pop() || 'png';
+  const name = `img-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+  const filePath = path.join(UPLOAD_DIR, name);
+  const buffer = Buffer.from(data, 'base64');
+  fs.writeFileSync(filePath, buffer);
+  res.json({ path: filePath, size: buffer.length });
+});
 
 // Activity log
 app.get('/api/activity', (req, res) => {

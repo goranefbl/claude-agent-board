@@ -34,6 +34,7 @@ function generateMcpConfig(): string {
 export interface SpawnOptions {
   systemPrompt: string;
   model?: string;
+  thinking?: boolean;
   allowedTools?: string[];
   disallowedTools?: string[];
 }
@@ -73,6 +74,10 @@ export function spawnClaude(
 
   if (options.model) {
     args.push('--model', options.model);
+  }
+
+  if (options.thinking) {
+    args.push('--settings', JSON.stringify({ alwaysThinkingEnabled: true }));
   }
 
   if (options.allowedTools && options.allowedTools.length > 0) {
