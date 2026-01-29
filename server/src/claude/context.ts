@@ -10,18 +10,22 @@ interface ContextResult {
   fullMessage: string;
   allowedTools?: string[];
   disallowedTools?: string[];
+  maxTurns?: number;
 }
 
-// Read-only tools for Explore mode
-const EXPLORE_ALLOWED_TOOLS = [
-  'Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Task',
-  'mcp__chrome-devtools__take_screenshot',
-  'mcp__chrome-devtools__take_snapshot',
-  'mcp__chrome-devtools__list_pages',
-  'mcp__chrome-devtools__list_network_requests',
-  'mcp__chrome-devtools__list_console_messages',
-  'mcp__chrome-devtools__get_network_request',
-  'mcp__chrome-devtools__get_console_message',
+// Write/destructive tools blocked in Explore mode
+const EXPLORE_DISALLOWED_TOOLS = [
+  'Bash', 'Write', 'Edit', 'NotebookEdit',
+  'mcp__chrome-devtools__click',
+  'mcp__chrome-devtools__fill',
+  'mcp__chrome-devtools__fill_form',
+  'mcp__chrome-devtools__drag',
+  'mcp__chrome-devtools__evaluate_script',
+  'mcp__chrome-devtools__handle_dialog',
+  'mcp__chrome-devtools__navigate_page',
+  'mcp__chrome-devtools__new_page',
+  'mcp__chrome-devtools__press_key',
+  'mcp__chrome-devtools__upload_file',
 ];
 
 export function assembleContext(sessionId: string, userMessage: string, modelOverride?: string, mode?: PermissionMode): ContextResult {
@@ -121,12 +125,20 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
   // Apply permission mode
   const effectiveMode = mode || 'execute';
   if (effectiveMode === 'explore') {
-    // Override tool settings — only allow read-only tools
-    allowedTools = EXPLORE_ALLOWED_TOOLS;
-    disallowedTools = undefined;
+    // Block all write/destructive tools via disallowedTools (allowedTools is ignored by CLI)
+    allowedTools = undefined;
+    disallowedTools = EXPLORE_DISALLOWED_TOOLS;
   } else if (effectiveMode === 'ask') {
     // Add system prompt instruction to confirm before edits
-    systemParts.push(`IMPORTANT: You are in "Ask" mode. Before making ANY file changes (writing, editing, creating, or deleting files), you MUST first describe what you plan to change and ask the user for explicit confirmation. Do not use Write, Edit, Bash (for file modifications), or NotebookEdit tools without first getting user approval. Read-only operations do not require confirmation.`);
+    systemParts.push(`CRITICAL RULE - "Ask" mode is active. You MUST follow this protocol strictly:
+
+1. NEVER use Bash, Write, Edit, or NotebookEdit tools in the same response where you describe what you plan to do.
+2. When the user requests ANY change (create, modify, delete files or run commands that modify state), you MUST respond with ONLY a text description of what you plan to do and ask "Should I proceed?"
+3. Only after the user replies with explicit confirmation (e.g. "yes", "go ahead", "do it") in a SUBSEQUENT message may you execute the change.
+4. Read-only operations (Read, Glob, Grep, WebFetch, WebSearch) do NOT require confirmation.
+5. Even if the user's message sounds like both a request and approval (e.g. "put the file back"), you MUST still describe your plan first and wait for confirmation in a separate message.
+
+This is a hard constraint. Do not combine your confirmation question with tool execution in the same turn.`);
   }
   // 'execute' mode: no restrictions (current default behavior)
 
@@ -140,5 +152,6 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
     fullMessage: messageParts.join('\n'),
     allowedTools: allowedTools?.length ? allowedTools : undefined,
     disallowedTools: disallowedTools?.length ? disallowedTools : undefined,
+    maxTurns: effectiveMode === 'ask' ? 1 : undefined,
   };
 }

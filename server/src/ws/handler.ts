@@ -141,6 +141,7 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
       thinking: !!thinking,
       allowedTools: ctx.allowedTools,
       disallowedTools: ctx.disallowedTools,
+      maxTurns: ctx.maxTurns,
     },
     (event) => {
       switch (event.type) {

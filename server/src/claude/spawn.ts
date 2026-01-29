@@ -37,6 +37,7 @@ export interface SpawnOptions {
   thinking?: boolean;
   allowedTools?: string[];
   disallowedTools?: string[];
+  maxTurns?: number;
 }
 
 export interface StreamEvent {
@@ -86,6 +87,10 @@ export function spawnClaude(
 
   if (options.disallowedTools && options.disallowedTools.length > 0) {
     args.push('--disallowedTools', ...options.disallowedTools);
+  }
+
+  if (options.maxTurns) {
+    args.push('--max-turns', String(options.maxTurns));
   }
 
   // Pass user message as the prompt argument
