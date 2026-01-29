@@ -1,0 +1,110 @@
+import { getDb } from './connection.js';
+
+function migrate(db: ReturnType<typeof getDb>) {
+  // Add path column to projects if missing
+  const projCols = db.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
+  if (!projCols.some(c => c.name === 'path')) {
+    db.exec("ALTER TABLE projects ADD COLUMN path TEXT DEFAULT NULL");
+  }
+
+  // Add status + status_updated_at to sessions if missing
+  const sessCols = db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[];
+  if (!sessCols.some(c => c.name === 'status')) {
+    db.exec("ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'backlog'");
+  }
+  if (!sessCols.some(c => c.name === 'status_updated_at')) {
+    db.exec("ALTER TABLE sessions ADD COLUMN status_updated_at TEXT NOT NULL DEFAULT ''");
+    // Backfill with existing updated_at values
+    db.exec("UPDATE sessions SET status_updated_at = updated_at WHERE status_updated_at = ''");
+  }
+}
+
+export function createSchema() {
+  const db = getDb();
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      path TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS agents (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      system_prompt TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT '🤖',
+      is_default INTEGER NOT NULL DEFAULT 0,
+      model TEXT NOT NULL DEFAULT 'sonnet',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS skills (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      prompt TEXT NOT NULL,
+      is_global INTEGER NOT NULL DEFAULT 0,
+      scope TEXT NOT NULL DEFAULT 'global',
+      project_id TEXT DEFAULT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      source_url TEXT DEFAULT NULL,
+      icon TEXT NOT NULL DEFAULT '⚡',
+      globs TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES agents(id),
+      title TEXT NOT NULL DEFAULT 'New Chat',
+      status TEXT NOT NULL DEFAULT 'backlog',
+      status_updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      action TEXT NOT NULL,
+      actor TEXT NOT NULL DEFAULT 'user',
+      from_status TEXT,
+      to_status TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+      content TEXT NOT NULL,
+      tool_use TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS memory (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+      summary TEXT NOT NULL DEFAULT '',
+      pinned_facts TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS session_skills (
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (session_id, skill_id)
+    );
+  `);
+
+  migrate(db);
+}

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+*.log
+
+# PM2 config (contains credentials)
+ecosystem.config.cjs
+
+# OS
+.DS_Store
+Thumbs.db
