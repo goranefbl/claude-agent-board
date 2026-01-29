@@ -198,7 +198,8 @@ export default function ChatPage() {
           hasSession={!!selectedSessionId}
           defaultModel={defaultModel}
           defaultThinking={defaultThinking}
-          defaultMode={defaultMode}
+          defaultMode={(selectedSession?.mode as PermissionMode) || defaultMode}
+          sessionId={selectedSessionId}
         />
       </div>
       {activeView === 'files' && hasProject && selectedProjectId && (

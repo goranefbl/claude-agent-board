@@ -35,6 +35,11 @@ function migrate(db: ReturnType<typeof getDb>) {
     db.exec("ALTER TABLE projects ADD COLUMN auto_summarize INTEGER NOT NULL DEFAULT 1");
   }
 
+  // Add mode column to sessions if missing
+  if (!sessCols.some(c => c.name === 'mode')) {
+    db.exec("ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'execute'");
+  }
+
   // Migrate legacy skill project_id into skill_projects junction table
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='skill_projects'").get();
   if (tables) {

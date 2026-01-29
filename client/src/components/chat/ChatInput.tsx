@@ -29,9 +29,10 @@ interface Props {
   defaultModel?: string;
   defaultThinking?: boolean;
   defaultMode?: PermissionMode;
+  sessionId?: string | null;
 }
 
-export default function ChatInput({ onSend, onStop, streaming, disabled, defaultModel, defaultThinking, defaultMode }: Props) {
+export default function ChatInput({ onSend, onStop, streaming, disabled, defaultModel, defaultThinking, defaultMode, sessionId }: Props) {
   const [input, setInput] = useState('');
   const [images, setImages] = useState<PendingImage[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -315,7 +316,13 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
                       return (
                         <button
                           key={m.value}
-                          onClick={() => { setMode(m.value); setShowModeMenu(false); }}
+                          onClick={() => {
+                            setMode(m.value);
+                            setShowModeMenu(false);
+                            if (sessionId) {
+                              api.put(`/sessions/${sessionId}`, { mode: m.value }).catch(() => {});
+                            }
+                          }}
                           className={`w-full text-left px-3 py-2.5 transition-colors flex items-center gap-3 ${
                             mode === m.value
                               ? 'bg-accent-600/15'

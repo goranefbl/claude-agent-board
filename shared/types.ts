@@ -53,6 +53,7 @@ export interface Session {
   title: string;
   status: SessionStatus;
   status_updated_at: string;
+  mode: PermissionMode;
   created_at: string;
   updated_at: string;
 }

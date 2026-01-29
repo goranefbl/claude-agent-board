@@ -52,12 +52,12 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { title, agent_id } = req.body;
+  const { title, agent_id, mode } = req.body;
   const db = getDb();
   const existing = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
-  db.prepare("UPDATE sessions SET title = COALESCE(?, title), agent_id = COALESCE(?, agent_id), updated_at = datetime('now') WHERE id = ?")
-    .run(title ?? null, agent_id ?? null, req.params.id);
+  db.prepare("UPDATE sessions SET title = COALESCE(?, title), agent_id = COALESCE(?, agent_id), mode = COALESCE(?, mode), updated_at = datetime('now') WHERE id = ?")
+    .run(title ?? null, agent_id ?? null, mode ?? null, req.params.id);
   res.json(db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id));
 });
 
