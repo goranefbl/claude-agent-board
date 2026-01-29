@@ -24,52 +24,57 @@ export default function LoginPage({ onLogin }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <span className="text-2xl font-bold text-white tracking-tight">WPGensHQ</span>
-        </div>
+    <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8 bg-gray-900 min-h-screen">
+      <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+        <h2 className="text-center text-2xl font-bold tracking-tight text-white">Sign in to your account</h2>
+      </div>
 
-        <form onSubmit={handleSubmit} className="bg-[#161b22] border border-gray-800/50 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Sign in</h2>
-
+      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="mb-4 p-3 bg-red-900/30 border border-red-800/50 rounded-lg text-red-400 text-sm">
+            <div className="p-3 bg-red-900/30 border border-red-800/50 rounded-md text-red-400 text-sm">
               {error}
             </div>
           )}
 
-          <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-1.5">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoFocus
-              autoComplete="username"
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 text-sm"
-              placeholder="admin"
-            />
+          <div>
+            <label className="block text-sm font-medium text-gray-100">Username</label>
+            <div className="mt-2">
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoFocus
+                autoComplete="username"
+                required
+                className="block w-full rounded-md bg-white/5 px-3 py-3 text-base text-white outline outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm"
+              />
+            </div>
           </div>
 
-          <div className="mb-6">
-            <label className="block text-sm text-gray-400 mb-1.5">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 text-sm"
-            />
+          <div>
+            <label className="block text-sm font-medium text-gray-100">Password</label>
+            <div className="mt-2">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                className="block w-full rounded-md bg-white/5 px-3 py-3 text-base text-white outline outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm"
+              />
+            </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading || !username || !password}
-            className="w-full py-2.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded-lg text-white font-medium text-sm transition-all"
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
+          <div>
+            <button
+              type="submit"
+              disabled={loading || !username || !password}
+              className="flex w-full justify-center rounded-md bg-indigo-500 px-3 py-3 text-sm font-semibold text-white hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-50"
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
