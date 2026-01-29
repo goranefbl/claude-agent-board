@@ -122,12 +122,12 @@ export default function Sidebar({
     <aside className="w-64 bg-[#0d1117] border-r border-gray-800/50 flex flex-col h-full select-none">
       <div className="px-4 py-4 border-b border-gray-800/50">
         <Link to="/chat" className="flex items-center gap-2.5">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="16 16 68 68" className="w-5 h-5 flex-shrink-0">
-            <rect x="16" y="16" width="18" height="18" fill="currentColor" />
-            <rect x="66" y="16" width="18" height="18" fill="currentColor" />
-            <rect x="16" y="66" width="18" height="18" fill="currentColor" />
-            <rect x="66" y="66" width="18" height="18" fill="currentColor" />
-            <circle cx="50" cy="50" r="9" fill="currentColor" />
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-5 h-5 flex-shrink-0">
+            <rect x="18" y="18" width="22" height="22" fill="currentColor" />
+            <rect x="60" y="18" width="22" height="22" fill="currentColor" />
+            <rect x="18" y="60" width="22" height="22" fill="currentColor" />
+            <rect x="60" y="60" width="22" height="22" fill="currentColor" />
+            <circle cx="50" cy="50" r="10" fill="currentColor" />
           </svg>
           <span className="text-base font-bold text-white tracking-tight">WPGensHQ</span>
         </Link>
