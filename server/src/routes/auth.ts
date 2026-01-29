@@ -5,7 +5,7 @@ const router = Router();
 
 // Single-user auth — credentials from env vars or defaults
 const AUTH_USER = process.env.AUTH_USER || 'admin';
-const AUTH_PASS = process.env.AUTH_PASS || 'wpgens2024';
+const AUTH_PASS = process.env.AUTH_PASS || 'admin';
 
 // Simple token store (in-memory, survives until restart)
 const validTokens = new Set<string>();

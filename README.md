@@ -2,21 +2,19 @@
 
 A full-stack local web UI for managing and chatting with Claude Code agents. Built with React, Express, WebSocket, and SQLite.
 
-<!-- Add your screenshots here -->
-<!-- ![Mission Control](docs/screenshots/board.png) -->
-<!-- ![Chat](docs/screenshots/chat.png) -->
-
 ## Features
 
 - **Multi-session chat** — Run multiple Claude agents concurrently across different projects. Switch between sessions while agents work in the background.
 - **Mission Control** — Kanban board with Backlog, In Progress, Review, and Done columns. Drag-and-drop cards, filter by project, and track activity.
 - **Project management** — Create projects with auto-generated folders or link existing codebases. Each project gets its own directory and preview URL.
 - **Skills system** — Create custom prompt skills or import from [skills.sh](https://skills.sh). Toggle skills per session, scope them globally or per project.
-- **Agent personas** — Configure multiple agents with different system prompts and models (Builder, Researcher, Debugger, Writer).
+- **Agent personas** — Configure multiple agents with different system prompts and models (Builder, Researcher, Debugger, Writer, DevOps).
 - **Memory** — Per-session memory with auto-summarization and pinned facts.
+- **Theme color** — Pick an accent color from 17 options in Settings. Persists across sessions.
 - **Live preview** — Projects served at `/preview/<project-name>/` for instant browser preview.
 - **Chrome DevTools** — Built-in MCP integration for browser automation, screenshots, and page inspection.
-- **Authentication** — Single-user auth with token-based sessions.
+- **Source control** — Git integration with staging, commits, diffs, branching, push/pull — all from the UI.
+- **File explorer** — Browse and edit project files with a built-in code editor.
 
 ## Architecture
 
@@ -32,15 +30,15 @@ claude-agent-board/
 - **Frontend**: React 18, React Router, Tailwind CSS, Lucide icons
 - **Backend**: Express, WebSocket (`ws`), better-sqlite3 (WAL mode)
 - **Agent**: Spawns `claude` CLI with `--output-format stream-json` for structured NDJSON streaming
-- **Database**: SQLite with projects, sessions, messages, agents, skills, memory, activity log
+- **Database**: SQLite with projects, sessions, messages, agents, skills, memory, settings, activity log
 
 ## Prerequisites
 
 - Node.js 20+
-- [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) installed and authenticated
-- Chrome/Chromium (for DevTools MCP, optional)
+- [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) installed and authenticated (`claude --version` should work)
+- Chrome/Chromium (optional, for DevTools MCP)
 
-## Setup
+## Quick Start
 
 ```bash
 # Clone
@@ -50,7 +48,24 @@ cd claude-agent-board
 # Install dependencies
 npm install
 
-# Create PM2 config (not committed — contains credentials)
+# Start in development mode (server + client with hot reload)
+npm run dev
+```
+
+Open `http://localhost:5173` (Vite dev server proxies API to port 3001).
+
+**Default login**: `admin` / `admin`
+
+## Production Setup
+
+```bash
+# Build the frontend
+npm run build
+
+# Option 1: Run directly
+AUTH_USER=admin AUTH_PASS=changeme PORT=3001 npx tsx server/src/index.ts
+
+# Option 2: Use PM2
 cat > ecosystem.config.cjs << 'EOF'
 module.exports = {
   apps: [{
@@ -61,8 +76,8 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 3001,
-      AUTH_USER: 'your@email.com',
-      AUTH_PASS: 'your-password',
+      AUTH_USER: 'admin',
+      AUTH_PASS: 'changeme',
     },
     instances: 1,
     exec_mode: 'fork',
@@ -72,17 +87,33 @@ module.exports = {
 };
 EOF
 
-# Build frontend
-npx -w client vite build
-
-# Start with PM2
 pm2 start ecosystem.config.cjs
-
-# Or run directly for development
-AUTH_USER=admin AUTH_PASS=admin PORT=3001 npx tsx server/src/index.ts
 ```
 
 The app runs at `http://localhost:3001`.
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `3001` |
+| `AUTH_USER` | Login username | `admin` |
+| `AUTH_PASS` | Login password | `admin` |
+
+## Default Seed Data
+
+On first run the server creates:
+
+- **5 agents**: Builder, Researcher, Debugger, Writer, DevOps
+- **3 skills**: Code Review, Concise Output, Testing
+- **2 MCP servers**: Chrome DevTools, Project Manager
+
+## How It Works
+
+1. **Chat** — Send a message → saved to SQLite → spawns `claude` CLI process → streams NDJSON back over WebSocket → displays in real-time.
+2. **Multi-agent** — Each session spawns its own `claude` process. Switch sessions freely while background agents keep working.
+3. **Mission Control** — Sessions have a status (backlog / in_progress / review / done). Change status from the chat header or drag cards on the board. All moves are logged in the activity feed.
+4. **Projects** — Creating a project makes a folder at `~/projects/<slug>/`. The agent's system prompt includes the project path so it knows where to work.
 
 ## Optional: HTTPS with Cloudflare Tunnel
 
@@ -96,21 +127,6 @@ cloudflared tunnel --url http://localhost:3001
 # Launch headless Chrome with remote debugging
 ./start-chrome.sh
 ```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `3001` |
-| `AUTH_USER` | Login username | required |
-| `AUTH_PASS` | Login password | required |
-
-## How It Works
-
-1. **Chat**: Send a message → saved to SQLite → spawns `claude` CLI process → streams NDJSON back over WebSocket → displays in real-time
-2. **Multi-agent**: Each session spawns its own `claude` process keyed by session ID. Switch sessions freely while background agents keep working.
-3. **Mission Control**: Sessions have a status (backlog/in_progress/review/done). Change status from the chat header or drag cards on the board. All moves are logged in the activity feed.
-4. **Projects**: Creating a project makes a folder at `/home/claude/projects/<slug>/`. The agent's system prompt includes the project path so it knows where to work.
 
 ## License
 
