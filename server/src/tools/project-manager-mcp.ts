@@ -138,8 +138,8 @@ function handleToolCall(id: number | string, params: { name: string; arguments?:
           throw new Error(`Git clone failed: ${err.stderr?.toString() || err.message}`);
         }
 
-        db.prepare('INSERT INTO projects (id, name, description, path, git_push_disabled) VALUES (?, ?, ?, ?, 1)')
-          .run(projectId, projectName, description, projectPath);
+        db.prepare('INSERT INTO projects (id, name, description, path, git_push_disabled, git_origin_url) VALUES (?, ?, ?, ?, 1, ?)')
+          .run(projectId, projectName, description, projectPath, gitUrl);
 
         return success(id, `Project created and repository cloned successfully.\n\nID: ${projectId}\nName: ${projectName}\nPath: ${projectPath}\nCloned from: ${gitUrl}\n\nThe project will appear in the sidebar after a page refresh.`);
       }

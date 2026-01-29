@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
 import { getDb } from '../db/connection.js';
 
 const router = Router();
@@ -48,7 +49,15 @@ router.post('/', (req, res) => {
     projectPath = ensureProjectFolder(slug);
   }
 
-  getDb().prepare('INSERT INTO projects (id, name, description, path, git_push_disabled) VALUES (?, ?, ?, ?, 1)').run(id, name, description, projectPath);
+  // Auto-detect git origin URL from existing repo
+  let gitOriginUrl = '';
+  try {
+    gitOriginUrl = execSync('git config --get remote.origin.url', {
+      cwd: projectPath, timeout: 5000, encoding: 'utf-8', stdio: 'pipe',
+    }).trim();
+  } catch { /* not a git repo or no remote */ }
+
+  getDb().prepare('INSERT INTO projects (id, name, description, path, git_push_disabled, git_origin_url) VALUES (?, ?, ?, ?, 1, ?)').run(id, name, description, projectPath, gitOriginUrl);
   const row = getDb().prepare('SELECT * FROM projects WHERE id = ?').get(id);
   res.status(201).json(row);
 });

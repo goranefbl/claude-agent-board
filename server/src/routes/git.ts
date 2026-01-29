@@ -321,6 +321,9 @@ router.post('/clone/:projectId', (req, res) => {
       encoding: 'utf-8',
       stdio: 'pipe',
     });
+    // Auto-set git_origin_url from the clone URL
+    getDb().prepare("UPDATE projects SET git_origin_url = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(url, req.params.projectId);
     res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: err.stderr || err.message });
