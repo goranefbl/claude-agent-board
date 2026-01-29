@@ -56,6 +56,17 @@ export function useChat(sessionId: string | null) {
     if (!sessionId) return;
 
     const unsub = wsClient.subscribe((msg: WsServerMessage) => {
+      // Handle streaming state sync on reconnect
+      if (msg.type === 'chat:streaming') {
+        for (const sid of msg.sessionIds) {
+          streamingSessionIds.add(sid);
+        }
+        if (msg.sessionIds.includes(sessionId)) {
+          setStreaming(true);
+        }
+        return;
+      }
+
       // Always track done/error for any session (cleanup global tracking)
       if (msg.type === 'chat:done' || msg.type === 'chat:error') {
         streamingSessionIds.delete(msg.sessionId);

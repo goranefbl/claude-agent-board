@@ -192,10 +192,16 @@ export interface WsErrorMessage {
   error: string;
 }
 
+export interface WsStreamingMessage {
+  type: 'chat:streaming';
+  sessionIds: string[];
+}
+
 export type WsClientMessage = WsSendMessage | WsStopMessage;
 export type WsServerMessage =
   | WsChunkMessage
   | WsToolUseMessage
   | WsToolResultMessage
   | WsDoneMessage
-  | WsErrorMessage;
+  | WsErrorMessage
+  | WsStreamingMessage;

@@ -6,9 +6,24 @@ import { assembleContext } from '../claude/context.js';
 import { spawnClaude, killProcess } from '../claude/spawn.js';
 import type { WsClientMessage, WsServerMessage, PermissionMode } from '../../../shared/types.js';
 
+// Track actively streaming sessions
+const streamingSessions = new Set<string>();
+
+let wssRef: WebSocketServer | null = null;
+
 function send(ws: WebSocket, msg: WsServerMessage) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
+  }
+}
+
+function broadcast(msg: WsServerMessage) {
+  if (!wssRef) return;
+  const data = JSON.stringify(msg);
+  for (const client of wssRef.clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(data);
+    }
   }
 }
 
@@ -68,8 +83,13 @@ async function autoSummarize(sessionId: string) {
 }
 
 export function setupWebSocket(wss: WebSocketServer) {
+  wssRef = wss;
   wss.on('connection', (ws) => {
     console.log('[WS] Client connected');
+    // Inform new client of any active streaming sessions
+    if (streamingSessions.size > 0) {
+      send(ws, { type: 'chat:streaming', sessionIds: Array.from(streamingSessions) });
+    }
     ws.on('message', (raw) => {
       console.log('[WS] Received:', raw.toString().substring(0, 200));
       let msg: WsClientMessage;
@@ -131,6 +151,7 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
   let fullText = '';
   const toolInteractions: { tool: string; input: unknown; result?: string }[] = [];
 
+  streamingSessions.add(sessionId);
   console.log(`[CHAT] Spawning claude...`);
   spawnClaude(
     sessionId,
@@ -147,12 +168,12 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
       switch (event.type) {
         case 'text':
           fullText += event.content || '';
-          send(ws, { type: 'chat:chunk', sessionId, content: event.content || '' });
+          broadcast({ type: 'chat:chunk', sessionId, content: event.content || '' });
           break;
 
         case 'tool_use':
           toolInteractions.push({ tool: event.tool || '', input: event.toolInput || {} });
-          send(ws, {
+          broadcast({
             type: 'chat:tool_use',
             sessionId,
             tool: event.tool || '',
@@ -164,7 +185,7 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
           // Attach result to last tool interaction
           const last = toolInteractions[toolInteractions.length - 1];
           if (last) last.result = event.toolResult;
-          send(ws, {
+          broadcast({
             type: 'chat:tool_result',
             sessionId,
             tool: event.tool || '',
@@ -173,6 +194,7 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
           break;
 
         case 'done': {
+          streamingSessions.delete(sessionId);
           const finalText = event.content || fullText;
 
           // Save assistant message with tool interactions
@@ -185,7 +207,7 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
               toolInteractions.length > 0 ? JSON.stringify(toolInteractions) : null,
             );
 
-          send(ws, {
+          broadcast({
             type: 'chat:done',
             sessionId,
             messageId: assistantMsgId,
@@ -205,7 +227,8 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
         }
 
         case 'error':
-          send(ws, { type: 'chat:error', sessionId, error: event.content || 'Unknown error' });
+          streamingSessions.delete(sessionId);
+          broadcast({ type: 'chat:error', sessionId, error: event.content || 'Unknown error' });
           break;
       }
     },
