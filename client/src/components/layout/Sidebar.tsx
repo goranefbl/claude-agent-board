@@ -33,7 +33,7 @@ function SectionHeader({ label, onAction, actionIcon }: { label: string; onActio
   );
 }
 
-function NavItem({ to, icon, label, active }: { to: string; icon: React.ReactNode; label: string; active: boolean }) {
+function NavItem({ to, icon, label, active, count }: { to: string; icon: React.ReactNode; label: string; active: boolean; count?: number }) {
   return (
     <Link
       to={to}
@@ -45,7 +45,12 @@ function NavItem({ to, icon, label, active }: { to: string; icon: React.ReactNod
     >
       {active && <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-accent-500" />}
       {icon}
-      <span>{label}</span>
+      <span className="flex-1">{label}</span>
+      {count !== undefined && count > 0 && (
+        <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-gray-800 text-[11px] font-medium text-gray-400 px-1.5">
+          {count}
+        </span>
+      )}
     </Link>
   );
 }
@@ -62,12 +67,25 @@ export default function Sidebar({
   const navigate = useNavigate();
   const { username, logout } = useContext(AuthContext);
 
+  const [counts, setCounts] = useState<{ skills: number; agents: number; mcps: number }>({ skills: 0, agents: 0, mcps: 0 });
+
   // Fetch projects internally when not provided by parent
   const isManaged = !!onCreateProject;
   useEffect(() => {
     if (isManaged) return; // parent manages projects
     api.get<Project[]>('/projects').then(setInternalProjects).catch(() => {});
   }, [isManaged]);
+
+  // Fetch counts for nav badges
+  useEffect(() => {
+    Promise.all([
+      api.get<any[]>('/skills').catch(() => []),
+      api.get<any[]>('/agents').catch(() => []),
+      api.get<any[]>('/mcps').catch(() => []),
+    ]).then(([skills, agents, mcps]) => {
+      setCounts({ skills: skills.length, agents: agents.length, mcps: mcps.length });
+    });
+  }, []);
 
   const projects = externalProjects || internalProjects;
 
@@ -211,9 +229,9 @@ export default function Sidebar({
 
         {/* AGENT section */}
         <SectionHeader label="Agent" />
-        <NavItem to="/skills" icon={<Zap size={16} />} label="Skills" active={location.pathname === '/skills'} />
-        <NavItem to="/agents" icon={<Bot size={16} />} label="Agents" active={location.pathname === '/agents'} />
-        <NavItem to="/mcps" icon={<Plug size={16} />} label="MCPs" active={location.pathname === '/mcps'} />
+        <NavItem to="/skills" icon={<Zap size={16} />} label="Skills" active={location.pathname === '/skills'} count={counts.skills} />
+        <NavItem to="/agents" icon={<Bot size={16} />} label="Agents" active={location.pathname === '/agents'} count={counts.agents} />
+        <NavItem to="/mcps" icon={<Plug size={16} />} label="MCPs" active={location.pathname === '/mcps'} count={counts.mcps} />
 
         {/* SETTINGS section */}
         <SectionHeader label="Settings" />

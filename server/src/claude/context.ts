@@ -17,12 +17,12 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
 
   // Get agent info + project path
   const session = db.prepare(`
-    SELECT a.system_prompt, a.name as agent_name, a.model, p.path as project_path, p.name as project_name
+    SELECT a.system_prompt, a.name as agent_name, a.model, p.path as project_path, p.name as project_name, p.id as project_id
     FROM sessions s
     JOIN agents a ON s.agent_id = a.id
     JOIN projects p ON s.project_id = p.id
     WHERE s.id = ?
-  `).get(sessionId) as { system_prompt: string; agent_name: string; model: string; project_path: string | null; project_name: string } | undefined;
+  `).get(sessionId) as { system_prompt: string; agent_name: string; model: string; project_path: string | null; project_name: string; project_id: string } | undefined;
 
   if (!session) throw new Error('Session not found');
 
@@ -74,7 +74,13 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
     systemParts.push('Active skills:\n' + skills.map(s => `- ${s.name}: ${s.prompt}`).join('\n'));
   }
 
-  // Memory
+  // Project memory
+  const projectMemory = db.prepare('SELECT * FROM project_memory WHERE project_id = ?').get(session.project_id) as Memory | undefined;
+  if (projectMemory?.summary) {
+    systemParts.push(`Project memory (shared across all sessions in this project):\n${projectMemory.summary}`);
+  }
+
+  // Session memory
   const memory = db.prepare('SELECT * FROM memory WHERE session_id = ?').get(sessionId) as Memory | undefined;
   if (memory && (memory.summary || memory.pinned_facts !== '[]')) {
     let memBlock = 'Session memory:';

@@ -28,6 +28,9 @@ function migrate(db: ReturnType<typeof getDb>) {
   if (!projCols.some(c => c.name === 'color')) {
     db.exec("ALTER TABLE projects ADD COLUMN color TEXT NOT NULL DEFAULT ''");
   }
+  if (!projCols.some(c => c.name === 'git_origin_url')) {
+    db.exec("ALTER TABLE projects ADD COLUMN git_origin_url TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 export function createSchema() {
@@ -103,6 +106,15 @@ export function createSchema() {
     CREATE TABLE IF NOT EXISTS memory (
       id TEXT PRIMARY KEY,
       session_id TEXT NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+      summary TEXT NOT NULL DEFAULT '',
+      pinned_facts TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS project_memory (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
       summary TEXT NOT NULL DEFAULT '',
       pinned_facts TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),

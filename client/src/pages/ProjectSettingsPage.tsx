@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
 import { api } from '../api/http';
+import { useProjectMemory } from '../hooks/useProjectMemory';
 import type { Project } from '../../../shared/types';
 
 const COLOR_PALETTE = [
@@ -16,11 +17,15 @@ export default function ProjectSettingsPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [gitOriginUrl, setGitOriginUrl] = useState('');
   const [gitPushDisabled, setGitPushDisabled] = useState(false);
   const [gitProtectedBranches, setGitProtectedBranches] = useState('');
   const [color, setColor] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const { memory: projectMemory, update: updateProjectMemory } = useProjectMemory(id || null);
+  const [memSummaryDraft, setMemSummaryDraft] = useState('');
+  const [editingMemSummary, setEditingMemSummary] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -28,6 +33,7 @@ export default function ProjectSettingsPage() {
       setProject(p);
       setName(p.name);
       setDescription(p.description || '');
+      setGitOriginUrl(p.git_origin_url || '');
       setGitPushDisabled(!!p.git_push_disabled);
       setGitProtectedBranches(p.git_protected_branches || '');
       setColor(p.color || '');
@@ -44,6 +50,7 @@ export default function ProjectSettingsPage() {
         name,
         description,
         color,
+        git_origin_url: gitOriginUrl,
         git_push_disabled: gitPushDisabled ? 1 : 0,
         git_protected_branches: gitProtectedBranches,
       });
@@ -162,10 +169,64 @@ export default function ProjectSettingsPage() {
             </div>
           </div>
 
+          {/* Project Memory */}
+          {projectMemory && (
+            <div className="mt-6 bg-[#161b22] rounded-lg border border-gray-700/50 p-6 space-y-4">
+              <h2 className="text-sm font-medium text-gray-300 mb-3">Project Memory</h2>
+              <p className="text-xs text-gray-500">Shared context visible to Claude across all sessions in this project.</p>
+
+              <div>
+                {editingMemSummary ? (
+                  <div>
+                    <textarea
+                      value={memSummaryDraft}
+                      onChange={(e) => setMemSummaryDraft(e.target.value)}
+                      rows={4}
+                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 resize-none"
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => { updateProjectMemory(memSummaryDraft); setEditingMemSummary(false); }}
+                        className="bg-accent-600 hover:bg-accent-700 text-white text-sm font-medium px-3 py-1.5 rounded transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingMemSummary(false)}
+                        className="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium px-3 py-1.5 rounded transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p
+                    onClick={() => { setMemSummaryDraft(projectMemory.summary); setEditingMemSummary(true); }}
+                    className="text-sm text-gray-400 bg-gray-900/50 border border-gray-800 rounded px-3 py-2 cursor-pointer hover:text-gray-300 min-h-[2.5em] whitespace-pre-wrap"
+                  >
+                    {projectMemory.summary || 'Click to add project memory...'}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Git settings */}
           {project.path && (
             <div className="mt-6 bg-[#161b22] rounded-lg border border-gray-700/50 p-6 space-y-4">
               <h2 className="text-sm font-medium text-gray-300 mb-3">Source Control</h2>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Origin URL</label>
+                <input
+                  type="text"
+                  value={gitOriginUrl}
+                  onChange={(e) => setGitOriginUrl(e.target.value)}
+                  placeholder="https://github.com/user/repo.git"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 font-mono"
+                />
+                <p className="text-xs text-gray-500 mt-1">Remote repository URL for this project</p>
+              </div>
 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input

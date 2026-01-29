@@ -5,6 +5,7 @@ export interface Project {
   name: string;
   description: string;
   path: string | null;
+  git_origin_url: string;
   git_push_disabled: number;
   git_protected_branches: string;
   color: string;

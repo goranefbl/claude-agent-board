@@ -5,6 +5,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useSessions } from '../hooks/useSessions';
 import { useChat } from '../hooks/useChat';
 import { useMemory } from '../hooks/useMemory';
+import { useProjectMemory } from '../hooks/useProjectMemory';
 import { useAgents } from '../hooks/useAgents';
 import { useSessionSkills } from '../hooks/useSkills';
 import MainLayout from '../components/layout/MainLayout';
@@ -60,6 +61,8 @@ export default function ChatPage() {
   const { agents } = useAgents();
   const { messages, streaming, streamContent, toolActivities, error, lastCost, send, stop } = useChat(selectedSessionId);
   const { memory, addFact, removeFact, update: updateMemory, refresh: refreshMemory } = useMemory(selectedSessionId);
+  const isRealProject = selectedProjectId && selectedProjectId !== GENERAL_PROJECT_ID;
+  const { memory: projectMemory, update: updateProjectMemory, refresh: refreshProjectMemory } = useProjectMemory(isRealProject ? selectedProjectId : null);
   const { defaultModel, defaultThinking } = useModelDefaults();
   const { skills: sessionSkills, toggle: toggleSkill } = useSessionSkills(selectedSessionId, selectedProjectId);
 
@@ -130,7 +133,10 @@ export default function ChatPage() {
   }, [removeSession, selectedSessionId]);
 
   React.useEffect(() => {
-    if (selectedSessionId && !streaming) refreshMemory();
+    if (selectedSessionId && !streaming) {
+      refreshMemory();
+      refreshProjectMemory();
+    }
   }, [messages.length, streaming]);
 
   const rightPanel = showMemory ? (
@@ -139,6 +145,8 @@ export default function ChatPage() {
       onAddFact={addFact}
       onRemoveFact={removeFact}
       onUpdateSummary={(summary) => updateMemory({ summary })}
+      projectMemory={isRealProject ? projectMemory : undefined}
+      onUpdateProjectSummary={isRealProject ? (summary) => updateProjectMemory(summary) : undefined}
     />
   ) : showSkills ? (
     <SkillToggleList skills={sessionSkills} onToggle={toggleSkill} />
