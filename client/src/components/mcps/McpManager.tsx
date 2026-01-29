@@ -83,7 +83,7 @@ export default function McpManager({ mcps, onCreate, onUpdate, onDelete }: Props
         </div>
         <button
           onClick={() => { setShowCreate(true); setEditingId(null); setForm(emptyForm); }}
-          className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 rounded text-sm text-white"
+          className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
         >
           <Plus size={14} /> Add MCP
         </button>
@@ -98,7 +98,7 @@ export default function McpManager({ mcps, onCreate, onUpdate, onDelete }: Props
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="My MCP Server"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50"
               />
             </div>
             <div>
@@ -107,7 +107,7 @@ export default function McpManager({ mcps, onCreate, onUpdate, onDelete }: Props
                 value={form.command}
                 onChange={(e) => setForm({ ...form, command: e.target.value })}
                 placeholder="npx"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 font-mono"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 font-mono"
               />
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function McpManager({ mcps, onCreate, onUpdate, onDelete }: Props
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="What does this MCP server do?"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50"
             />
           </div>
 
@@ -129,7 +129,7 @@ export default function McpManager({ mcps, onCreate, onUpdate, onDelete }: Props
               onChange={(e) => setForm({ ...form, args: e.target.value })}
               placeholder={"-y\nsome-mcp-package@latest\n--flag"}
               rows={3}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 resize-none font-mono"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 resize-none font-mono"
             />
           </div>
 
@@ -140,14 +140,14 @@ export default function McpManager({ mcps, onCreate, onUpdate, onDelete }: Props
               onChange={(e) => setForm({ ...form, env: e.target.value })}
               placeholder="API_KEY=abc123"
               rows={2}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 resize-none font-mono"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 resize-none font-mono"
             />
           </div>
 
           <div className="flex gap-2">
             <button
               onClick={editingId ? handleUpdate : handleCreate}
-              className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 rounded text-sm text-white"
+              className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
             >
               <Save size={14} /> {editingId ? 'Update' : 'Create'}
             </button>
@@ -169,7 +169,7 @@ export default function McpManager({ mcps, onCreate, onUpdate, onDelete }: Props
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-white">{m.name}</span>
-                {m.is_default ? <span className="text-xs bg-amber-600/30 text-amber-400 px-1.5 py-0.5 rounded">default</span> : null}
+                {m.is_default ? <span className="text-xs bg-accent-600/30 text-accent-400 px-1.5 py-0.5 rounded">default</span> : null}
                 {!m.enabled && <span className="text-xs bg-gray-700/50 text-gray-500 px-1.5 py-0.5 rounded">disabled</span>}
               </div>
               {m.description && <p className="text-xs text-gray-400 mt-1">{m.description}</p>}

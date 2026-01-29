@@ -4,7 +4,7 @@ import type { Agent, SessionStatus } from '../../../../shared/types';
 
 const STATUS_OPTIONS: { key: SessionStatus; label: string; color: string }[] = [
   { key: 'backlog', label: 'Backlog', color: 'bg-gray-500' },
-  { key: 'in_progress', label: 'In Progress', color: 'bg-amber-500' },
+  { key: 'in_progress', label: 'In Progress', color: 'bg-accent-500' },
   { key: 'review', label: 'Review', color: 'bg-blue-500' },
   { key: 'done', label: 'Done', color: 'bg-emerald-500' },
 ];
@@ -72,7 +72,7 @@ export default function Header({
           <select
             value={selectedAgentId || ''}
             onChange={(e) => onSelectAgent(e.target.value)}
-            className="text-xs bg-[#0d1117] border border-gray-700/50 rounded px-2 py-1 text-white focus:outline-none focus:border-amber-500/50"
+            className="text-xs bg-[#0d1117] border border-gray-700/50 rounded px-2 py-1 text-white focus:outline-none focus:border-accent-500/50"
           >
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
@@ -88,7 +88,7 @@ export default function Header({
             <select
               value={sessionStatus || 'backlog'}
               onChange={(e) => onStatusChange(e.target.value as SessionStatus)}
-              className="text-xs bg-[#0d1117] border border-gray-700/50 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-amber-500/50"
+              className="text-xs bg-[#0d1117] border border-gray-700/50 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-accent-500/50"
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s.key} value={s.key}>{s.label}</option>

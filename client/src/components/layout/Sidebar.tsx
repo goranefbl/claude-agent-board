@@ -44,7 +44,7 @@ function NavItem({ to, icon, label, active }: { to: string; icon: React.ReactNod
           : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
       }`}
     >
-      {active && <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-amber-500" />}
+      {active && <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-accent-500" />}
       {icon}
       <span>{label}</span>
     </Link>
@@ -114,10 +114,8 @@ export default function Sidebar({
 
   return (
     <aside className="w-64 bg-[#0d1117] border-r border-gray-800/50 flex flex-col h-full select-none">
-      {/* Logo */}
       <div className="px-4 py-4 border-b border-gray-800/50">
         <Link to="/chat" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-sm">W</div>
           <span className="text-base font-bold text-white tracking-tight">WPGensHQ</span>
         </Link>
       </div>
@@ -142,7 +140,7 @@ export default function Sidebar({
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
               placeholder="Project name"
-              className="w-full px-2.5 py-1.5 text-sm bg-gray-800/60 border border-gray-700/50 rounded text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
+              className="w-full px-2.5 py-1.5 text-sm bg-gray-800/60 border border-gray-700/50 rounded text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50"
             />
           </form>
         )}
@@ -158,7 +156,7 @@ export default function Sidebar({
               }`}
             >
               {selectedProjectId === p.id && (
-                <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-amber-500" />
+                <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-accent-500" />
               )}
               <span className="truncate pl-1">{p.name}</span>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -189,7 +187,7 @@ export default function Sidebar({
               <div className="ml-5 border-l border-gray-800/60">
                 <button
                   onClick={onCreateSession}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 hover:text-amber-400 w-full transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 hover:text-accent-400 w-full transition-colors"
                 >
                   <MessageSquarePlus size={12} /> New Session
                 </button>
@@ -198,7 +196,7 @@ export default function Sidebar({
                     key={s.id}
                     onClick={() => onSelectSession?.(s.id)}
                     className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-xs group transition-colors ${
-                      selectedSessionId === s.id ? 'text-amber-400' : 'text-gray-500 hover:text-gray-300'
+                      selectedSessionId === s.id ? 'text-accent-400' : 'text-gray-500 hover:text-gray-300'
                     }`}
                   >
                     <span className="truncate">{s.title}</span>

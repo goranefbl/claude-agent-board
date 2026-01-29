@@ -73,7 +73,7 @@ export default function LogsPage() {
               type="checkbox"
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="rounded border-gray-600 bg-gray-800 text-amber-500"
+              className="rounded border-gray-600 bg-gray-800 text-accent-500"
             />
             Auto-refresh
           </label>

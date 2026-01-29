@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 import LoginPage from './pages/LoginPage';
 import ChatPage from './pages/ChatPage';
 import AgentsPage from './pages/AgentsPage';
@@ -13,6 +14,7 @@ import McpsPage from './pages/McpsPage';
 
 export default function App() {
   const { authenticated, loading, login, logout, username } = useAuth();
+  useTheme();
 
   if (loading) {
     return (

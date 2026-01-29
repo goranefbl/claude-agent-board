@@ -27,7 +27,6 @@ export default function LoginPage({ onLogin }: Props) {
     <div className="min-h-screen bg-[#0d1117] flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-lg">W</div>
           <span className="text-2xl font-bold text-white tracking-tight">WPGensHQ</span>
         </div>
 
@@ -48,7 +47,7 @@ export default function LoginPage({ onLogin }: Props) {
               onChange={(e) => setUsername(e.target.value)}
               autoFocus
               autoComplete="username"
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 text-sm"
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 text-sm"
               placeholder="admin"
             />
           </div>
@@ -60,14 +59,14 @@ export default function LoginPage({ onLogin }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 text-sm"
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 text-sm"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading || !username || !password}
-            className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 rounded-lg text-white font-medium text-sm transition-all"
+            className="w-full py-2.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded-lg text-white font-medium text-sm transition-all"
           >
             {loading ? 'Signing in...' : 'Sign in'}
           </button>

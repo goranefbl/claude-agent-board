@@ -51,9 +51,9 @@ export default function StreamingIndicator({ content, toolActivities }: Props) {
       <div className="flex justify-start mb-4">
         <div className="bg-[#161b22] border border-gray-800/50 rounded-lg px-4 py-3">
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="w-2 h-2 bg-accent-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-2 h-2 bg-accent-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-2 h-2 bg-accent-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
           </div>
         </div>
       </div>
@@ -71,7 +71,7 @@ export default function StreamingIndicator({ content, toolActivities }: Props) {
                 key={i}
                 className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${
                   activity.type === 'use'
-                    ? 'bg-amber-900/20 text-amber-300 border border-amber-800/30'
+                    ? 'bg-accent-900/20 text-accent-300 border border-accent-800/30'
                     : 'bg-green-900/20 text-green-300 border border-green-800/30'
                 }`}
               >
@@ -102,7 +102,7 @@ export default function StreamingIndicator({ content, toolActivities }: Props) {
         )}
 
         <div className="mt-1">
-          <span className="inline-block w-2 h-4 bg-amber-500 animate-pulse" />
+          <span className="inline-block w-2 h-4 bg-accent-500 animate-pulse" />
         </div>
       </div>
     </div>

@@ -79,7 +79,7 @@ export default function ProjectSettingsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50"
               />
             </div>
 
@@ -89,7 +89,7 @@ export default function ProjectSettingsPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 resize-none"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 resize-none"
               />
             </div>
 
@@ -106,7 +106,7 @@ export default function ProjectSettingsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors disabled:opacity-50"
+                className="bg-accent-600 hover:bg-accent-700 text-white text-sm font-medium px-4 py-2 rounded transition-colors disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -133,7 +133,7 @@ export default function ProjectSettingsPage() {
                   type="checkbox"
                   checked={gitPushDisabled}
                   onChange={(e) => setGitPushDisabled(e.target.checked)}
-                  className="rounded border-gray-600 bg-gray-900 text-amber-500 focus:ring-amber-500/50"
+                  className="rounded border-gray-600 bg-gray-900 text-accent-500 focus:ring-accent-500/50"
                 />
                 <span className="text-sm text-gray-300">Disable push (pull-only mode)</span>
               </label>
@@ -145,7 +145,7 @@ export default function ProjectSettingsPage() {
                   value={gitProtectedBranches}
                   onChange={(e) => setGitProtectedBranches(e.target.value)}
                   placeholder="main, production"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50"
                 />
                 <p className="text-xs text-gray-500 mt-1">Comma-separated list of branches where push is blocked</p>
               </div>

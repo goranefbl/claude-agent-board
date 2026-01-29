@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 function statusColor(status: string): string {
   switch (status) {
-    case 'M': return 'text-amber-400';
+    case 'M': return 'text-accent-400';
     case 'A': case '??': return 'text-green-400';
     case 'D': return 'text-red-400';
     case 'R': return 'text-blue-400';
@@ -128,7 +128,7 @@ export default function SourceControl({ projectId, project }: Props) {
             disabled={loading}
             className="w-full flex items-center gap-3 bg-[#161b22] hover:bg-gray-800 border border-gray-700/50 rounded-lg px-4 py-3 text-left transition-colors disabled:opacity-50"
           >
-            <FolderGit2 size={18} className="text-amber-500 shrink-0" />
+            <FolderGit2 size={18} className="text-accent-500 shrink-0" />
             <div>
               <div className="text-sm text-white font-medium">Initialize Repository</div>
               <div className="text-xs text-gray-500">Create a new git repo in this project folder</div>
@@ -154,12 +154,12 @@ export default function SourceControl({ projectId, project }: Props) {
               value={cloneUrl}
               onChange={(e) => setCloneUrl(e.target.value)}
               placeholder="https://github.com/user/repo.git"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-accent-500/50"
             />
             <button
               onClick={() => { if (cloneUrl.trim()) clone(cloneUrl.trim()); }}
               disabled={!cloneUrl.trim() || loading}
-              className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
+              className="w-full bg-accent-600 hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
             >
               {loading ? 'Cloning...' : 'Clone'}
             </button>
@@ -187,7 +187,7 @@ export default function SourceControl({ projectId, project }: Props) {
               value={status?.branch || ''}
               onChange={(e) => handleCheckout(e.target.value)}
               disabled={actionLoading}
-              className="flex-1 text-xs bg-[#0d1117] border border-gray-700/50 rounded px-2 py-1 text-white focus:outline-none focus:border-amber-500/50"
+              className="flex-1 text-xs bg-[#0d1117] border border-gray-700/50 rounded px-2 py-1 text-white focus:outline-none focus:border-accent-500/50"
             >
               {branches.filter(b => !b.remote).map(b => (
                 <option key={b.name} value={b.name}>{b.name}</option>
@@ -201,12 +201,12 @@ export default function SourceControl({ projectId, project }: Props) {
             onChange={(e) => setCommitMsg(e.target.value)}
             placeholder="Commit message..."
             rows={2}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/50 resize-none"
+            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-accent-500/50 resize-none"
           />
           <button
             onClick={handleCommit}
             disabled={!commitMsg.trim() || stagedFiles.length === 0 || actionLoading}
-            className="w-full mt-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
+            className="w-full mt-1.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
           >
             Commit ({stagedFiles.length} staged)
           </button>
@@ -256,7 +256,7 @@ export default function SourceControl({ projectId, project }: Props) {
               <div className="px-2 pb-2">
                 {log.map(entry => (
                   <div key={entry.hash} className="px-2 py-1 text-xs text-gray-500 truncate">
-                    <span className="text-amber-500/70 font-mono">{entry.shortHash}</span>
+                    <span className="text-accent-500/70 font-mono">{entry.shortHash}</span>
                     {' '}
                     <span className="text-gray-400">{entry.message}</span>
                   </div>

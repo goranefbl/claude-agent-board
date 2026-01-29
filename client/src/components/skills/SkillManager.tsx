@@ -80,7 +80,7 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
           <span className="text-lg">{s.icon}</span>
           <span className="font-medium text-white">{s.name}</span>
           <span className={`text-xs px-1.5 py-0.5 rounded ${
-            s.scope === 'global' ? 'bg-amber-600/30 text-amber-400' : 'bg-purple-600/30 text-purple-400'
+            s.scope === 'global' ? 'bg-accent-600/30 text-accent-400' : 'bg-purple-600/30 text-purple-400'
           }`}>
             {s.scope}
           </span>
@@ -118,7 +118,7 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
           </button>
           <button
             onClick={() => { setShowCreate(true); setShowImport(false); setEditingId(null); setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡' }); }}
-            className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 rounded text-sm text-white"
+            className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
           >
             <Plus size={14} /> New Skill
           </button>
@@ -138,12 +138,12 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
             value={importUrl}
             onChange={(e) => setImportUrl(e.target.value)}
             placeholder="https://skills.sh/vercel-labs/agent-skills/web-design-guidelines"
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 mb-3"
+            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 mb-3"
           />
           <select
             value={importScope}
             onChange={(e) => setImportScope(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 mb-3"
+            className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 mb-3"
           >
             <option value="global">Global scope</option>
             <option value="project">Project scope</option>
@@ -153,7 +153,7 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
             <button
               onClick={handleImport}
               disabled={importing || !importUrl}
-              className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded text-sm text-white"
+              className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded text-sm text-white"
             >
               <Download size={14} /> {importing ? 'Importing...' : 'Import'}
             </button>
@@ -175,33 +175,33 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
               value={form.icon}
               onChange={(e) => setForm({ ...form, icon: e.target.value })}
               placeholder="⚡"
-              className="w-16 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-amber-500/50"
+              className="w-16 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-accent-500/50"
             />
             <input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Skill name"
-              className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
+              className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50"
             />
           </div>
           <input
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Description"
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 mb-3"
+            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 mb-3"
           />
           <textarea
             value={form.prompt}
             onChange={(e) => setForm({ ...form, prompt: e.target.value })}
             placeholder="Skill prompt — what should the agent know/do when this skill is active?"
             rows={6}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 resize-none mb-3"
+            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 resize-none mb-3"
           />
           <div className="flex items-center gap-4 mb-3">
             <select
               value={form.scope}
               onChange={(e) => setForm({ ...form, scope: e.target.value })}
-              className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50"
+              className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50"
             >
               <option value="global">Global scope</option>
               <option value="project">Project scope</option>
@@ -210,7 +210,7 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
           <div className="flex gap-2">
             <button
               onClick={editingId ? handleUpdate : handleCreate}
-              className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 rounded text-sm text-white"
+              className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
             >
               <Save size={14} /> {editingId ? 'Update' : 'Create'}
             </button>

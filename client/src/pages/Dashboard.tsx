@@ -14,7 +14,7 @@ export default function Dashboard() {
             to="/chat"
             className="p-6 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800 hover:border-gray-600 transition-colors text-center"
           >
-            <MessageSquare size={32} className="mx-auto mb-3 text-amber-400" />
+            <MessageSquare size={32} className="mx-auto mb-3 text-accent-400" />
             <h2 className="font-semibold text-white mb-1">Chat</h2>
             <p className="text-xs text-gray-400">Start or continue conversations</p>
           </Link>
@@ -23,7 +23,7 @@ export default function Dashboard() {
             to="/agents"
             className="p-6 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800 hover:border-gray-600 transition-colors text-center"
           >
-            <Bot size={32} className="mx-auto mb-3 text-amber-300" />
+            <Bot size={32} className="mx-auto mb-3 text-accent-300" />
             <h2 className="font-semibold text-white mb-1">Agents</h2>
             <p className="text-xs text-gray-400">Manage agent personas</p>
           </Link>
@@ -32,7 +32,7 @@ export default function Dashboard() {
             to="/skills"
             className="p-6 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800 hover:border-gray-600 transition-colors text-center"
           >
-            <Settings size={32} className="mx-auto mb-3 text-amber-200" />
+            <Settings size={32} className="mx-auto mb-3 text-accent-200" />
             <h2 className="font-semibold text-white mb-1">Skills</h2>
             <p className="text-xs text-gray-400">Manage prompt skills</p>
           </Link>

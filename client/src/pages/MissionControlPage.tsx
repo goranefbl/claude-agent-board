@@ -12,7 +12,7 @@ const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
 
 const COLUMNS: { key: SessionStatus; label: string; color: string; dotColor: string; bgColor: string }[] = [
   { key: 'backlog', label: 'Backlog', color: 'text-gray-400', dotColor: 'bg-gray-400', bgColor: 'bg-gray-400/10' },
-  { key: 'in_progress', label: 'In Progress', color: 'text-amber-400', dotColor: 'bg-amber-400', bgColor: 'bg-amber-400/10' },
+  { key: 'in_progress', label: 'In Progress', color: 'text-accent-400', dotColor: 'bg-accent-400', bgColor: 'bg-accent-400/10' },
   { key: 'review', label: 'Review', color: 'text-blue-400', dotColor: 'bg-blue-400', bgColor: 'bg-blue-400/10' },
   { key: 'done', label: 'Done', color: 'text-emerald-400', dotColor: 'bg-emerald-400', bgColor: 'bg-emerald-400/10' },
 ];
@@ -173,7 +173,7 @@ export default function MissionControlPage() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/50">
           <div className="flex items-center gap-3">
-            <LayoutGrid size={20} className="text-amber-400" />
+            <LayoutGrid size={20} className="text-accent-400" />
             <h1 className="text-lg font-bold text-white">Mission Control</h1>
           </div>
           <div className="flex items-center gap-3">
@@ -183,7 +183,7 @@ export default function MissionControlPage() {
               <select
                 value={filterProject}
                 onChange={(e) => setFilterProject(e.target.value)}
-                className="bg-[#161b22] border border-gray-800/60 rounded-md px-2.5 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-amber-500/50"
+                className="bg-[#161b22] border border-gray-800/60 rounded-md px-2.5 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-accent-500/50"
               >
                 <option value="all">All Projects</option>
                 {projects.map(p => (
@@ -195,7 +195,7 @@ export default function MissionControlPage() {
             <button
               onClick={() => setShowActivity(!showActivity)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                showActivity ? 'bg-amber-600/20 text-amber-400 border border-amber-600/30' : 'bg-[#161b22] text-gray-400 border border-gray-800/60 hover:text-gray-300'
+                showActivity ? 'bg-accent-600/20 text-accent-400 border border-accent-600/30' : 'bg-[#161b22] text-gray-400 border border-gray-800/60 hover:text-gray-300'
               }`}
             >
               <Activity size={14} /> Activity
@@ -262,7 +262,7 @@ export default function MissionControlPage() {
                 {activity.map((a) => (
                   <div key={a.id} className="px-3 py-2 rounded-md hover:bg-[#161b22] transition-colors">
                     <div className="text-xs text-gray-400">
-                      <span className={a.actor === 'ai' ? 'text-blue-400' : 'text-amber-400'}>
+                      <span className={a.actor === 'ai' ? 'text-blue-400' : 'text-accent-400'}>
                         {a.actor === 'ai' ? 'AI' : 'You'}
                       </span>
                       {' '}{a.action}{' '}
