@@ -4,42 +4,69 @@ import { getDb } from '../db/connection.js';
 
 const router = Router();
 
+/** Helper: attach project_ids array to each skill row */
+function attachProjectIds(rows: any[]): any[] {
+  if (rows.length === 0) return rows;
+  const db = getDb();
+  const all = db.prepare('SELECT skill_id, project_id FROM skill_projects').all() as { skill_id: string; project_id: string }[];
+  const map = new Map<string, string[]>();
+  for (const r of all) {
+    if (!map.has(r.skill_id)) map.set(r.skill_id, []);
+    map.get(r.skill_id)!.push(r.project_id);
+  }
+  return rows.map(r => ({ ...r, project_ids: map.get(r.id) || [] }));
+}
+
+function syncProjectIds(db: ReturnType<typeof getDb>, skillId: string, projectIds: string[]) {
+  db.prepare('DELETE FROM skill_projects WHERE skill_id = ?').run(skillId);
+  const insert = db.prepare('INSERT INTO skill_projects (skill_id, project_id) VALUES (?, ?)');
+  for (const pid of projectIds) {
+    insert.run(skillId, pid);
+  }
+}
+
 // List all skills (optionally filter by project_id)
 router.get('/', (req, res) => {
   const { project_id } = req.query;
   let rows;
   if (project_id) {
-    // Return global skills + skills for this project
+    // Return global skills + skills assigned to this project
     rows = getDb()
-      .prepare("SELECT * FROM skills WHERE scope = 'global' OR project_id = ? ORDER BY name ASC")
+      .prepare(`SELECT * FROM skills WHERE scope = 'global'
+                OR id IN (SELECT skill_id FROM skill_projects WHERE project_id = ?)
+                ORDER BY name ASC`)
       .all(project_id);
   } else {
     rows = getDb().prepare('SELECT * FROM skills ORDER BY scope ASC, name ASC').all();
   }
-  res.json(rows);
+  res.json(attachProjectIds(rows));
 });
 
 router.get('/:id', (req, res) => {
   const row = getDb().prepare('SELECT * FROM skills WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Not found' });
-  res.json(row);
+  res.json(attachProjectIds([row])[0]);
 });
 
 // Create skill manually
 router.post('/', (req, res) => {
-  const { name, slug, description = '', prompt, is_global = 0, scope = 'global', project_id, icon = '⚡', globs } = req.body;
+  const { name, slug, description = '', prompt, is_global = 0, scope = 'global', project_ids, project_id, icon = '⚡', globs } = req.body;
   if (!name || !prompt) return res.status(400).json({ error: 'name and prompt required' });
   const id = uuid();
   const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  getDb().prepare(
+  const db = getDb();
+  db.prepare(
     'INSERT INTO skills (id, name, slug, description, prompt, is_global, scope, project_id, icon, globs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, name, finalSlug, description, prompt, is_global ? 1 : 0, scope, project_id || null, icon, globs || null);
-  res.status(201).json(getDb().prepare('SELECT * FROM skills WHERE id = ?').get(id));
+  ).run(id, name, finalSlug, description, prompt, is_global ? 1 : 0, scope, null, icon, globs || null);
+  // Handle project assignments
+  const pids: string[] = project_ids || (project_id ? [project_id] : []);
+  if (pids.length > 0) syncProjectIds(db, id, pids);
+  res.status(201).json(attachProjectIds([db.prepare('SELECT * FROM skills WHERE id = ?').get(id)])[0]);
 });
 
 // Import skill from URL (skills.sh or raw SKILL.md)
 router.post('/import', async (req, res) => {
-  const { url, project_id, scope = 'global' } = req.body;
+  const { url, project_ids, project_id, scope = 'global' } = req.body;
   if (!url) return res.status(400).json({ error: 'url required' });
 
   try {
@@ -78,8 +105,9 @@ router.post('/import', async (req, res) => {
 
     const id = uuid();
     const slug = parsed.slug || parsed.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const db = getDb();
 
-    getDb().prepare(
+    db.prepare(
       'INSERT INTO skills (id, name, slug, description, prompt, is_global, scope, project_id, source_url, icon, globs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(
       id,
@@ -89,13 +117,16 @@ router.post('/import', async (req, res) => {
       parsed.body, // The full markdown body is the prompt
       scope === 'global' ? 1 : 0,
       scope,
-      project_id || null,
+      null,
       sourceUrl,
       parsed.icon || '⚡',
       parsed.globs ? JSON.stringify(parsed.globs) : null,
     );
 
-    res.status(201).json(getDb().prepare('SELECT * FROM skills WHERE id = ?').get(id));
+    const pids: string[] = project_ids || (project_id ? [project_id] : []);
+    if (pids.length > 0) syncProjectIds(db, id, pids);
+
+    res.status(201).json(attachProjectIds([db.prepare('SELECT * FROM skills WHERE id = ?').get(id)])[0]);
   } catch (err: any) {
     console.error('[SKILLS] Import error:', err);
     res.status(500).json({ error: err.message });
@@ -104,7 +135,7 @@ router.post('/import', async (req, res) => {
 
 // Update skill
 router.put('/:id', (req, res) => {
-  const { name, slug, description, prompt, is_global, scope, project_id, icon, globs } = req.body;
+  const { name, slug, description, prompt, is_global, scope, project_ids, icon, globs } = req.body;
   const db = getDb();
   const existing = db.prepare('SELECT * FROM skills WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
@@ -115,7 +146,6 @@ router.put('/:id', (req, res) => {
     prompt = COALESCE(?, prompt),
     is_global = COALESCE(?, is_global),
     scope = COALESCE(?, scope),
-    project_id = COALESCE(?, project_id),
     icon = COALESCE(?, icon),
     globs = COALESCE(?, globs),
     updated_at = datetime('now')
@@ -123,11 +153,14 @@ router.put('/:id', (req, res) => {
     .run(
       name ?? null, slug ?? null, description ?? null, prompt ?? null,
       is_global !== undefined ? (is_global ? 1 : 0) : null,
-      scope ?? null, project_id ?? null, icon ?? null,
+      scope ?? null, icon ?? null,
       globs !== undefined ? (globs ? JSON.stringify(globs) : null) : null,
       req.params.id
     );
-  res.json(db.prepare('SELECT * FROM skills WHERE id = ?').get(req.params.id));
+  if (project_ids !== undefined) {
+    syncProjectIds(db, req.params.id, project_ids);
+  }
+  res.json(attachProjectIds([db.prepare('SELECT * FROM skills WHERE id = ?').get(req.params.id)])[0]);
 });
 
 router.delete('/:id', (req, res) => {
@@ -147,7 +180,7 @@ router.get('/session/:sessionId', (req, res) => {
       SELECT s.*, COALESCE(ss.enabled, 0) as enabled
       FROM skills s
       LEFT JOIN session_skills ss ON ss.skill_id = s.id AND ss.session_id = ?
-      WHERE s.scope = 'global' OR s.project_id = ?
+      WHERE s.scope = 'global' OR s.id IN (SELECT skill_id FROM skill_projects WHERE project_id = ?)
       ORDER BY s.scope ASC, s.name ASC
     `;
     params = [req.params.sessionId, project_id];
@@ -162,7 +195,7 @@ router.get('/session/:sessionId', (req, res) => {
   }
 
   const rows = getDb().prepare(query).all(...params);
-  res.json(rows);
+  res.json(attachProjectIds(rows));
 });
 
 // Toggle skill for a session

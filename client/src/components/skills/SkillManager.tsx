@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X, Download, Globe, FolderOpen } from 'lucide-react';
-import type { Skill } from '../../../../shared/types';
+import { api } from '../../api/http';
+import type { Skill, Project } from '../../../../shared/types';
 
 interface CreateData {
   name: string;
   prompt: string;
   description?: string;
   scope?: string;
-  project_id?: string;
+  project_ids?: string[];
   icon?: string;
   globs?: string[];
 }
@@ -15,16 +16,18 @@ interface CreateData {
 interface ImportData {
   url: string;
   scope?: string;
-  project_id?: string;
+  project_ids?: string[];
 }
 
 interface Props {
   skills: Skill[];
   onCreate: (data: CreateData) => void;
-  onUpdate: (id: string, data: Partial<Skill>) => void;
+  onUpdate: (id: string, data: Partial<Skill> & { project_ids?: string[] }) => void;
   onDelete: (id: string) => void;
   onImport: (data: ImportData) => Promise<Skill>;
 }
+
+const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
 
 export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onImport }: Props) {
   const [showCreate, setShowCreate] = useState(false);
@@ -32,27 +35,56 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
   const [editingId, setEditingId] = useState<string | null>(null);
   const [importUrl, setImportUrl] = useState('');
   const [importScope, setImportScope] = useState('global');
+  const [importProjectIds, setImportProjectIds] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
-  const [form, setForm] = useState({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡' });
+  const [form, setForm] = useState({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡', projectIds: [] as string[] });
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    api.get<Project[]>('/projects').then(setProjects).catch(() => {});
+  }, []);
+
+  const realProjects = projects.filter(p => p.id !== GENERAL_PROJECT_ID);
 
   const handleCreate = () => {
     if (!form.name || !form.prompt) return;
-    onCreate({ name: form.name, prompt: form.prompt, description: form.description, scope: form.scope, icon: form.icon });
-    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡' });
+    onCreate({
+      name: form.name,
+      prompt: form.prompt,
+      description: form.description,
+      scope: form.scope,
+      project_ids: form.scope === 'project' ? form.projectIds : undefined,
+      icon: form.icon,
+    });
+    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡', projectIds: [] });
     setShowCreate(false);
   };
 
   const startEdit = (s: Skill) => {
     setEditingId(s.id);
-    setForm({ name: s.name, description: s.description, prompt: s.prompt, scope: s.scope, icon: s.icon });
+    setForm({
+      name: s.name,
+      description: s.description,
+      prompt: s.prompt,
+      scope: s.scope,
+      icon: s.icon,
+      projectIds: s.project_ids || [],
+    });
   };
 
   const handleUpdate = () => {
     if (!editingId || !form.name || !form.prompt) return;
-    onUpdate(editingId, { name: form.name, description: form.description, prompt: form.prompt, scope: form.scope as any, icon: form.icon });
+    onUpdate(editingId, {
+      name: form.name,
+      description: form.description,
+      prompt: form.prompt,
+      scope: form.scope as any,
+      project_ids: form.scope === 'project' ? form.projectIds : [],
+      icon: form.icon,
+    });
     setEditingId(null);
-    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡' });
+    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡', projectIds: [] });
   };
 
   const handleImport = async () => {
@@ -60,8 +92,13 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
     setImporting(true);
     setImportError('');
     try {
-      await onImport({ url: importUrl, scope: importScope });
+      await onImport({
+        url: importUrl,
+        scope: importScope,
+        project_ids: importScope === 'project' ? importProjectIds : undefined,
+      });
       setImportUrl('');
+      setImportProjectIds([]);
       setShowImport(false);
     } catch (err: any) {
       setImportError(err.message || 'Import failed');
@@ -70,13 +107,46 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
     }
   };
 
+  const toggleProjectId = (ids: string[], id: string): string[] =>
+    ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id];
+
+  const projectName = (id: string) => projects.find(p => p.id === id)?.name || id.slice(0, 8);
+
+  const renderProjectPicker = (selectedIds: string[], onChange: (ids: string[]) => void) => (
+    <div className="mt-2">
+      <label className="block text-xs text-gray-500 mb-1.5">Assign to projects</label>
+      <div className="flex flex-wrap gap-1.5">
+        {realProjects.map(p => {
+          const selected = selectedIds.includes(p.id);
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onChange(toggleProjectId(selectedIds, p.id))}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                selected
+                  ? 'bg-accent-600/30 text-accent-300 border border-accent-500/50'
+                  : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600'
+              }`}
+            >
+              {p.name}
+            </button>
+          );
+        })}
+      </div>
+      {realProjects.length === 0 && (
+        <p className="text-xs text-gray-600 mt-1">No projects available</p>
+      )}
+    </div>
+  );
+
   const globalSkills = skills.filter(s => s.scope === 'global');
   const projectSkills = skills.filter(s => s.scope === 'project');
 
   const renderSkillCard = (s: Skill) => (
     <div key={s.id} className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/50 flex items-start justify-between group">
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-lg">{s.icon}</span>
           <span className="font-medium text-white">{s.name}</span>
           <span className={`text-xs px-1.5 py-0.5 rounded ${
@@ -90,6 +160,15 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
         </div>
         {s.description && <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>}
         <p className="text-xs text-gray-400 mt-1 line-clamp-2">{s.prompt}</p>
+        {s.project_ids && s.project_ids.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {s.project_ids.map(pid => (
+              <span key={pid} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400">
+                {projectName(pid)}
+              </span>
+            ))}
+          </div>
+        )}
         {s.globs && (
           <p className="text-xs text-gray-600 mt-1">Globs: {s.globs}</p>
         )}
@@ -117,7 +196,7 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
             <Download size={14} /> Import
           </button>
           <button
-            onClick={() => { setShowCreate(true); setShowImport(false); setEditingId(null); setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡' }); }}
+            onClick={() => { setShowCreate(true); setShowImport(false); setEditingId(null); setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡', projectIds: [] }); }}
             className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
           >
             <Plus size={14} /> New Skill
@@ -148,8 +227,9 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
             <option value="global">Global scope</option>
             <option value="project">Project scope</option>
           </select>
-          {importError && <p className="text-xs text-red-400 mb-3">{importError}</p>}
-          <div className="flex gap-2">
+          {importScope === 'project' && renderProjectPicker(importProjectIds, setImportProjectIds)}
+          {importError && <p className="text-xs text-red-400 mb-3 mt-2">{importError}</p>}
+          <div className="flex gap-2 mt-3">
             <button
               onClick={handleImport}
               disabled={importing || !importUrl}
@@ -197,7 +277,7 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
             rows={6}
             className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 resize-none mb-3"
           />
-          <div className="flex items-center gap-4 mb-3">
+          <div className="mb-3">
             <select
               value={form.scope}
               onChange={(e) => setForm({ ...form, scope: e.target.value })}
@@ -206,6 +286,7 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
               <option value="global">Global scope</option>
               <option value="project">Project scope</option>
             </select>
+            {form.scope === 'project' && renderProjectPicker(form.projectIds, (ids) => setForm({ ...form, projectIds: ids }))}
           </div>
           <div className="flex gap-2">
             <button
