@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   MessageCircle, FolderPlus, MessageSquarePlus, Trash2,
-  Zap, Bot, Settings, ScrollText, LogOut, User, LayoutGrid, Settings2
+  Zap, Bot, Plug, Settings, ScrollText, LogOut, User, LayoutGrid, Settings2
 } from 'lucide-react';
 import { AuthContext } from '../../App';
 import { api } from '../../api/http';
@@ -223,6 +223,7 @@ export default function Sidebar({
         <SectionHeader label="Agent" />
         <NavItem to="/skills" icon={<Zap size={16} />} label="Skills" active={location.pathname === '/skills'} />
         <NavItem to="/agents" icon={<Bot size={16} />} label="Agents" active={location.pathname === '/agents'} />
+        <NavItem to="/mcps" icon={<Plug size={16} />} label="MCPs" active={location.pathname === '/mcps'} />
 
         {/* SETTINGS section */}
         <SectionHeader label="Settings" />

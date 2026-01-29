@@ -9,6 +9,7 @@ import LogsPage from './pages/LogsPage';
 import ConfigPage from './pages/ConfigPage';
 import MissionControlPage from './pages/MissionControlPage';
 import ProjectSettingsPage from './pages/ProjectSettingsPage';
+import McpsPage from './pages/McpsPage';
 
 export default function App() {
   const { authenticated, loading, login, logout, username } = useAuth();
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/board" element={<MissionControlPage />} />
         <Route path="/agents" element={<AgentsPage />} />
+        <Route path="/mcps" element={<McpsPage />} />
         <Route path="/skills" element={<SkillsPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/projects/:id" element={<ProjectSettingsPage />} />

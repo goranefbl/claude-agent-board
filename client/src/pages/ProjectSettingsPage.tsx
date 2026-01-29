@@ -10,6 +10,8 @@ export default function ProjectSettingsPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [gitPushDisabled, setGitPushDisabled] = useState(false);
+  const [gitProtectedBranches, setGitProtectedBranches] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -19,6 +21,8 @@ export default function ProjectSettingsPage() {
       setProject(p);
       setName(p.name);
       setDescription(p.description || '');
+      setGitPushDisabled(!!p.git_push_disabled);
+      setGitProtectedBranches(p.git_protected_branches || '');
     }).catch(() => navigate('/chat'));
   }, [id, navigate]);
 
@@ -28,7 +32,12 @@ export default function ProjectSettingsPage() {
     setSaving(true);
     setSaved(false);
     try {
-      const updated = await api.put<Project>(`/projects/${id}`, { name, description });
+      const updated = await api.put<Project>(`/projects/${id}`, {
+        name,
+        description,
+        git_push_disabled: gitPushDisabled ? 1 : 0,
+        git_protected_branches: gitProtectedBranches,
+      });
       setProject(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -113,6 +122,35 @@ export default function ProjectSettingsPage() {
               <div>Created: <span className="text-gray-400">{new Date(project.created_at).toLocaleString()}</span></div>
             </div>
           </div>
+
+          {/* Git settings */}
+          {project.path && (
+            <div className="mt-6 bg-[#161b22] rounded-lg border border-gray-700/50 p-6 space-y-4">
+              <h2 className="text-sm font-medium text-gray-300 mb-3">Source Control</h2>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={gitPushDisabled}
+                  onChange={(e) => setGitPushDisabled(e.target.checked)}
+                  className="rounded border-gray-600 bg-gray-900 text-amber-500 focus:ring-amber-500/50"
+                />
+                <span className="text-sm text-gray-300">Disable push (pull-only mode)</span>
+              </label>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Protected branches</label>
+                <input
+                  type="text"
+                  value={gitProtectedBranches}
+                  onChange={(e) => setGitProtectedBranches(e.target.value)}
+                  placeholder="main, production"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50"
+                />
+                <p className="text-xs text-gray-500 mt-1">Comma-separated list of branches where push is blocked</p>
+              </div>
+            </div>
+          )}
 
           {/* Danger zone */}
           <div className="mt-6 bg-[#161b22] rounded-lg border border-gray-700/50 p-6">

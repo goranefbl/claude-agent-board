@@ -5,6 +5,8 @@ export interface Project {
   name: string;
   description: string;
   path: string | null;
+  git_push_disabled: number;
+  git_protected_branches: string;
   created_at: string;
   updated_at: string;
 }
@@ -84,6 +86,54 @@ export interface SessionSkill {
   session_id: string;
   skill_id: string;
   enabled: number;
+}
+
+export interface McpServer {
+  id: string;
+  name: string;
+  description: string;
+  command: string;
+  args: string;   // JSON array string
+  env: string;    // JSON object string
+  enabled: number;
+  is_default: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Git Types ----
+
+export interface GitFileStatus {
+  path: string;
+  status: string; // 'M' | 'A' | 'D' | 'R' | 'C' | 'U' | '??' etc.
+  staged: boolean;
+}
+
+export interface GitStatusResult {
+  isGitRepo: boolean;
+  branch?: string;
+  ahead?: number;
+  behind?: number;
+  files?: GitFileStatus[];
+}
+
+export interface GitBranch {
+  name: string;
+  current: boolean;
+  remote: boolean;
+}
+
+export interface GitLogEntry {
+  hash: string;
+  shortHash: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
+export interface GitDiffResult {
+  path: string;
+  diff: string;
 }
 
 // ---- WebSocket Message Envelopes ----

@@ -17,6 +17,14 @@ function migrate(db: ReturnType<typeof getDb>) {
     // Backfill with existing updated_at values
     db.exec("UPDATE sessions SET status_updated_at = updated_at WHERE status_updated_at = ''");
   }
+
+  // Add git settings columns to projects if missing
+  if (!projCols.some(c => c.name === 'git_push_disabled')) {
+    db.exec("ALTER TABLE projects ADD COLUMN git_push_disabled INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!projCols.some(c => c.name === 'git_protected_branches')) {
+    db.exec("ALTER TABLE projects ADD COLUMN git_protected_branches TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 export function createSchema() {
@@ -109,6 +117,19 @@ export function createSchema() {
       skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
       enabled INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (session_id, skill_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS mcp_servers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      command TEXT NOT NULL,
+      args TEXT NOT NULL DEFAULT '[]',
+      env TEXT NOT NULL DEFAULT '{}',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 

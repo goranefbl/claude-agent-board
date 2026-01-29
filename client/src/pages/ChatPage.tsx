@@ -14,6 +14,7 @@ import ChatView from '../components/chat/ChatView';
 import MemoryPanel from '../components/memory/MemoryPanel';
 import SkillToggleList from '../components/skills/SkillToggleList';
 import FileExplorer from '../components/files/FileExplorer';
+import SourceControl from '../components/git/SourceControl';
 import type { SessionStatus } from '../../../shared/types';
 
 const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
@@ -38,7 +39,7 @@ export default function ChatPage() {
   }, [projectFromUrl, sessionFromUrl]);
   const [showMemory, setShowMemory] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
-  const [activeView, setActiveView] = useState<'chat' | 'files'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'files' | 'source_control'>('chat');
 
   const { projects, create: createProject, remove: removeProject } = useProjects();
   // When no project selected, show sessions for the General project
@@ -55,7 +56,7 @@ export default function ChatPage() {
 
   // Reset to chat view when switching away from a project
   useEffect(() => {
-    if (!hasProject && activeView === 'files') {
+    if (!hasProject && activeView !== 'chat') {
       setActiveView('chat');
     }
   }, [hasProject, activeView]);
@@ -180,6 +181,9 @@ export default function ChatPage() {
       </div>
       {activeView === 'files' && hasProject && selectedProjectId && (
         <FileExplorer projectId={selectedProjectId} />
+      )}
+      {activeView === 'source_control' && hasProject && selectedProjectId && currentProject && (
+        <SourceControl projectId={selectedProjectId} project={currentProject} />
       )}
     </MainLayout>
   );

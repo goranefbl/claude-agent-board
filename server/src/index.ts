@@ -16,6 +16,10 @@ import skillsRouter from './routes/skills.js';
 import memoryRouter from './routes/memory.js';
 import exportRouter from './routes/exportRoute.js';
 import authRouter, { authMiddleware } from './routes/auth.js';
+import settingsRouter from './routes/settings.js';
+import filesRouter from './routes/files.js';
+import gitRouter from './routes/git.js';
+import mcpsRouter from './routes/mcps.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
@@ -41,6 +45,10 @@ app.use('/api/agents', agentsRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/memory', memoryRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/settings', settingsRouter);
+app.use('/api/files', filesRouter);
+app.use('/api/git', gitRouter);
+app.use('/api/mcps', mcpsRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // Activity log

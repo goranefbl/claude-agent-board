@@ -1,15 +1,41 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { getDb } from '../db/connection.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MCP_CONFIG = path.join(__dirname, '..', '..', '..', 'mcp-config.json');
+const MCP_CONFIG_PATH = path.join(__dirname, '..', '..', '..', 'mcp-config.json');
 const activeProcesses = new Map<string, ChildProcess>();
+
+function generateMcpConfig(): string {
+  const db = getDb();
+  const servers = db.prepare('SELECT name, command, args, env FROM mcp_servers WHERE enabled = 1').all() as {
+    name: string; command: string; args: string; env: string;
+  }[];
+
+  const mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }> = {};
+  for (const s of servers) {
+    const key = s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const entry: { command: string; args: string[]; env?: Record<string, string> } = {
+      command: s.command,
+      args: JSON.parse(s.args),
+    };
+    const env = JSON.parse(s.env);
+    if (Object.keys(env).length > 0) entry.env = env;
+    mcpServers[key] = entry;
+  }
+
+  const config = JSON.stringify({ mcpServers }, null, 2);
+  fs.writeFileSync(MCP_CONFIG_PATH, config, 'utf-8');
+  return MCP_CONFIG_PATH;
+}
 
 export interface SpawnOptions {
   systemPrompt: string;
   model?: string;
   allowedTools?: string[];
+  disallowedTools?: string[];
 }
 
 export interface StreamEvent {
@@ -33,12 +59,15 @@ export function spawnClaude(
   // Kill any existing process for this session
   killProcess(sessionId);
 
+  // Generate mcp-config.json from enabled MCP servers in DB
+  const mcpConfigPath = generateMcpConfig();
+
   const args = [
     '--print',
     '--output-format', 'stream-json',
     '--verbose',
     '--dangerously-skip-permissions',
-    '--mcp-config', MCP_CONFIG,
+    '--mcp-config', mcpConfigPath,
     '--system-prompt', options.systemPrompt,
   ];
 
@@ -48,6 +77,10 @@ export function spawnClaude(
 
   if (options.allowedTools && options.allowedTools.length > 0) {
     args.push('--allowedTools', ...options.allowedTools);
+  }
+
+  if (options.disallowedTools && options.disallowedTools.length > 0) {
+    args.push('--disallowedTools', ...options.disallowedTools);
   }
 
   // Pass user message as the prompt argument
