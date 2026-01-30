@@ -30,6 +30,45 @@ createSchema();
 seed();
 
 const app = express();
+
+// Subdomain proxy: <project>.agents.wpgens.com -> project's dev_port
+// Must be before cors/json/auth so it proxies raw requests
+app.use((req, res, next) => {
+  const host = req.headers.host || '';
+  const match = host.match(/^([^.]+)\.agents\.wpgens\.com/);
+  if (!match) return next();
+
+  const subdomain = match[1];
+  const db = getDb();
+  // Match subdomain to project folder name (last segment of path)
+  const project = db.prepare(
+    "SELECT dev_port, path FROM projects WHERE dev_port IS NOT NULL AND path LIKE ?"
+  ).get(`%/${subdomain}`) as { dev_port: number; path: string } | undefined;
+
+  if (!project) {
+    return res.status(404).send(`No project found for subdomain: ${subdomain}`);
+  }
+
+  const proxyReq = http.request({
+    hostname: '127.0.0.1',
+    port: project.dev_port,
+    path: req.url,
+    method: req.method,
+    headers: { ...req.headers, host: `127.0.0.1:${project.dev_port}` },
+  }, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', () => {
+    res.status(502).send(`Dev server not running on port ${project.dev_port}`);
+  });
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method || '')) {
+    req.pipe(proxyReq);
+  } else {
+    proxyReq.end();
+  }
+});
+
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 

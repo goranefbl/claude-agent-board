@@ -58,25 +58,27 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
       `- You are working on the "${session.project_name}" project`,
       `- Project directory: ${session.project_path}`,
       `- All code changes should be made inside ${session.project_path}`,
-      `- Preview URL: https://agents.wpgens.com/preview/${folderName}/`,
       `- When creating or modifying files, always work within the project directory`,
       `- CRITICAL: Port 3001 is reserved by the platform. NEVER kill processes on port 3001 or any other port you did not start. If a port is in use, pick another port in the 3100-3999 range instead of killing existing processes.`,
     );
     if (session.dev_port) {
       envLines.push(
         `- This project's dev server port is ${session.dev_port}. Always start the dev server on this port.`,
-        `- The preview URL reverse-proxies to port ${session.dev_port}, so the app is accessible at https://agents.wpgens.com/preview/${folderName}/`,
+        `- Preview URL: https://${folderName}.agents.wpgens.com/ (subdomain proxies to port ${session.dev_port})`,
+        `- Static files are also at: https://agents.wpgens.com/preview/${folderName}/`,
+        `- IMPORTANT: Do NOT set basePath, PUBLIC_URL, or any path prefix in the project config. The app is served at the root "/" via subdomain.`,
       );
     } else {
       envLines.push(
+        `- Preview URL (static files): https://agents.wpgens.com/preview/${folderName}/`,
         `- If this project needs a dev server (Next.js, Vite, etc.), use a port in the 3100-3999 range. Check which ports are free first with: ss -tlnp | grep -E '31[0-9]{2}'`,
       );
     }
   } else {
     envLines.unshift(
       '- You can create projects in /home/claude/projects/<project-name>/',
-      '- Files placed there are served at https://agents.wpgens.com/preview/<project-name>/',
-      '- For example, creating /home/claude/projects/my-site/index.html makes it viewable at https://agents.wpgens.com/preview/my-site/',
+      '- Static files are served at https://agents.wpgens.com/preview/<project-name>/',
+      '- For dynamic apps, use subdomain: https://<project-name>.agents.wpgens.com/ (requires dev_port set on project)',
       '- CRITICAL: Port 3001 is reserved by the platform. NEVER kill processes on port 3001. When running dev servers, use ports 3100-3999. If a port is in use, pick another port in that range instead of killing the existing process.',
     );
   }

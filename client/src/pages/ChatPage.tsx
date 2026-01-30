@@ -171,7 +171,7 @@ export default function ChatPage() {
           selectedProjectId={selectedProjectId}
           selectedSessionId={selectedSessionId}
           onSelectProject={(id) => { setSelectedProjectId(id); setSelectedSessionId(null); setSearchParams({ project: id }); }}
-          onSelectSession={setSelectedSessionId}
+          onSelectSession={(id) => { setSelectedSessionId(id); setSearchParams(prev => { const p: Record<string, string> = {}; const proj = prev.get('project'); if (proj) p.project = proj; p.session = id; return p; }); }}
           onCreateProject={handleCreateProject}
           onCreateSession={handleCreateSession}
           onDeleteSession={handleDeleteSession}
