@@ -33,6 +33,46 @@ const app = express();
 
 // Subdomain proxy: <project>.wpgens.com -> project's dev_port
 // Must be before cors/json/auth so it proxies raw requests
+function proxyToDevServer(
+  req: express.Request,
+  res: express.Response,
+  port: number,
+  retriesLeft: number = 3,
+  delayMs: number = 1500,
+): void {
+  const proxyReq = http.request({
+    hostname: '127.0.0.1',
+    port,
+    path: req.url,
+    method: req.method,
+    headers: { ...req.headers, host: `127.0.0.1:${port}` },
+  }, (proxyRes) => {
+    const status = proxyRes.statusCode || 502;
+    // Retry on 404 for page/document requests (likely server still initializing)
+    // Don't retry asset requests (_next/static, .js, .css, etc.) to avoid delays
+    const isPageRequest = !req.url?.match(/\.(js|css|map|ico|png|jpg|svg|woff2?|ttf)$/) && !req.url?.startsWith('/_next/');
+    if (status === 404 && isPageRequest && retriesLeft > 0) {
+      proxyRes.resume(); // drain response
+      setTimeout(() => proxyToDevServer(req, res, port, retriesLeft - 1, delayMs), delayMs);
+      return;
+    }
+    res.writeHead(status, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', () => {
+    if (retriesLeft > 0) {
+      setTimeout(() => proxyToDevServer(req, res, port, retriesLeft - 1, delayMs), delayMs);
+    } else {
+      res.status(502).send(`Dev server not running on port ${port}`);
+    }
+  });
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method || '')) {
+    req.pipe(proxyReq);
+  } else {
+    proxyReq.end();
+  }
+}
+
 app.use((req, res, next) => {
   const host = req.headers.host || '';
   // Match <project>.wpgens.com but skip reserved subdomains
@@ -52,24 +92,7 @@ app.use((req, res, next) => {
     return res.status(404).send(`No project found for subdomain: ${subdomain}`);
   }
 
-  const proxyReq = http.request({
-    hostname: '127.0.0.1',
-    port: project.dev_port,
-    path: req.url,
-    method: req.method,
-    headers: { ...req.headers, host: `127.0.0.1:${project.dev_port}` },
-  }, (proxyRes) => {
-    res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
-    proxyRes.pipe(res);
-  });
-  proxyReq.on('error', () => {
-    res.status(502).send(`Dev server not running on port ${project.dev_port}`);
-  });
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method || '')) {
-    req.pipe(proxyReq);
-  } else {
-    proxyReq.end();
-  }
+  proxyToDevServer(req, res, project.dev_port);
 });
 
 app.use(cors());
