@@ -71,30 +71,56 @@ function looksLikeUrl(input: string): boolean {
   return /^https?:\/\//i.test(trimmed) || /^skills\.sh\//i.test(trimmed);
 }
 
-/** Fetch SKILL.md content from a URL (skills.sh, GitHub, or direct) */
+/** Fetch SKILL.md content from a URL (skills.sh, GitHub, or direct) with AI fallback */
 async function fetchSkillUrl(input: string): Promise<string> {
   let url = input.trim();
   if (!url.startsWith('http')) url = `https://${url}`;
 
-  // skills.sh URL -> raw GitHub
+  // Fast path: skills.sh URL -> try common raw GitHub patterns
   if (url.includes('skills.sh/')) {
     const match = url.match(/skills\.sh\/([^/]+)\/([^/]+)\/([^/?#]+)/);
     if (match) {
       const [, owner, repo, skillName] = match;
-      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/skills/${skillName}/SKILL.md`;
-      const resp = await fetch(rawUrl);
-      if (resp.ok) return resp.text();
-      const altUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${skillName}/SKILL.md`;
-      const altResp = await fetch(altUrl);
-      if (altResp.ok) return altResp.text();
-      throw new Error(`Could not find SKILL.md at ${rawUrl} or ${altUrl}`);
+      const base = `https://raw.githubusercontent.com/${owner}/${repo}/main`;
+      for (const path of [`skills/${skillName}`, skillName]) {
+        const resp = await fetch(`${base}/${path}/SKILL.md`);
+        if (resp.ok) return resp.text();
+      }
+      // Fast path failed -- fall through to AI fallback below
     }
   }
 
-  // Direct URL
+  // Fetch the URL itself (could be skills.sh page, GitHub page, raw markdown, etc.)
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
-  return resp.text();
+  const text = await resp.text();
+
+  // If it looks like raw markdown/SKILL.md content, return directly
+  if (text.startsWith('---') || (text.startsWith('#') && !text.includes('<html'))) {
+    return text;
+  }
+
+  // HTML page: strip scripts/styles/tags and use Claude to extract skill content
+  const truncated = text
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 12000);
+
+  const result = await runClaude(
+    `Extract the SKILL.md content from this page.
+Return ONLY the raw markdown skill content (with YAML frontmatter if present).
+If the page shows a skill with rules/instructions, reconstruct it as a proper SKILL.md with frontmatter (name, description) and the full instructions as the body.
+If you cannot find any skill content, return an empty string.
+
+Page URL: ${url}
+Page content:
+${truncated}`
+  );
+
+  if (!result || result.length < 20) throw new Error(`Could not extract skill from ${url}`);
+  return result;
 }
 
 /** Run Claude to generate JSON from a prompt */
@@ -199,40 +225,13 @@ User input: ${input}`;
   }
 });
 
-// Import skill from URL (skills.sh or raw SKILL.md)
+// Import skill from URL (skills.sh, raw SKILL.md, or any page with AI fallback)
 router.post('/import', async (req, res) => {
   const { url, project_ids, project_id, scope = 'global' } = req.body;
   if (!url) return res.status(400).json({ error: 'url required' });
 
   try {
-    let skillMd: string;
-    let sourceUrl = url;
-
-    // Handle skills.sh URLs: convert to raw GitHub SKILL.md URL
-    if (url.includes('skills.sh/')) {
-      // e.g. https://skills.sh/vercel-labs/agent-skills/web-design-guidelines
-      const match = url.match(/skills\.sh\/([^/]+)\/([^/]+)\/([^/]+)/);
-      if (!match) return res.status(400).json({ error: 'Invalid skills.sh URL format. Expected: skills.sh/owner/repo/skill-name' });
-      const [, owner, repo, skillName] = match;
-      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/skills/${skillName}/SKILL.md`;
-      const response = await fetch(rawUrl);
-      if (!response.ok) {
-        // Try alternate path structure
-        const altUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${skillName}/SKILL.md`;
-        const altResponse = await fetch(altUrl);
-        if (!altResponse.ok) return res.status(404).json({ error: `Could not find SKILL.md at ${rawUrl} or ${altUrl}` });
-        skillMd = await altResponse.text();
-      } else {
-        skillMd = await response.text();
-      }
-    } else if (url.endsWith('.md') || url.includes('raw.githubusercontent.com')) {
-      // Direct URL to SKILL.md
-      const response = await fetch(url);
-      if (!response.ok) return res.status(404).json({ error: `Could not fetch ${url}` });
-      skillMd = await response.text();
-    } else {
-      return res.status(400).json({ error: 'URL must be a skills.sh link or direct URL to a SKILL.md file' });
-    }
+    const skillMd = await fetchSkillUrl(url);
 
     // Parse SKILL.md: extract YAML frontmatter and markdown body
     const parsed = parseSkillMd(skillMd);
@@ -249,11 +248,11 @@ router.post('/import', async (req, res) => {
       parsed.name,
       slug,
       parsed.description || '',
-      parsed.body, // The full markdown body is the prompt
+      parsed.body,
       scope === 'global' ? 1 : 0,
       scope,
       null,
-      sourceUrl,
+      url,
       parsed.icon || '⚡',
       parsed.globs ? JSON.stringify(parsed.globs) : null,
     );
