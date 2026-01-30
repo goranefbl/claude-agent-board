@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   MessageCircle, FolderPlus, MessageSquarePlus, Trash2,
-  Zap, Bot, Plug, Settings, ScrollText, LogOut, User, LayoutGrid, Settings2
+  Zap, Bot, Plug, Cable, Settings, ScrollText, LogOut, User, LayoutGrid, Settings2
 } from 'lucide-react';
 import { AuthContext } from '../../App';
 import { api } from '../../api/http';
@@ -67,7 +67,7 @@ export default function Sidebar({
   const navigate = useNavigate();
   const { username, logout } = useContext(AuthContext);
 
-  const [counts, setCounts] = useState<{ skills: number; agents: number; mcps: number }>({ skills: 0, agents: 0, mcps: 0 });
+  const [counts, setCounts] = useState<{ skills: number; agents: number; mcps: number; apis: number }>({ skills: 0, agents: 0, mcps: 0, apis: 0 });
 
   // Fetch projects internally when not provided by parent
   const isManaged = !!onCreateProject;
@@ -82,8 +82,9 @@ export default function Sidebar({
       api.get<any[]>('/skills').catch(() => []),
       api.get<any[]>('/agents').catch(() => []),
       api.get<any[]>('/mcps').catch(() => []),
-    ]).then(([skills, agents, mcps]) => {
-      setCounts({ skills: skills.length, agents: agents.length, mcps: mcps.length });
+      api.get<any[]>('/apis').catch(() => []),
+    ]).then(([skills, agents, mcps, apis]) => {
+      setCounts({ skills: skills.length, agents: agents.length, mcps: mcps.length, apis: apis.length });
     });
   }, []);
 
@@ -232,6 +233,7 @@ export default function Sidebar({
         <NavItem to="/skills" icon={<Zap size={16} />} label="Skills" active={location.pathname === '/skills'} count={counts.skills} />
         <NavItem to="/agents" icon={<Bot size={16} />} label="Agents" active={location.pathname === '/agents'} count={counts.agents} />
         <NavItem to="/mcps" icon={<Plug size={16} />} label="MCPs" active={location.pathname === '/mcps'} count={counts.mcps} />
+        <NavItem to="/apis" icon={<Cable size={16} />} label="APIs" active={location.pathname === '/apis'} count={counts.apis} />
 
         {/* SETTINGS section */}
         <SectionHeader label="Settings" />

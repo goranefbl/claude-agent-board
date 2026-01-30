@@ -8,12 +8,14 @@ import { useMemory } from '../hooks/useMemory';
 import { useProjectMemory } from '../hooks/useProjectMemory';
 import { useAgents } from '../hooks/useAgents';
 import { useSessionSkills } from '../hooks/useSkills';
+import { useSessionApis } from '../hooks/useApis';
 import MainLayout from '../components/layout/MainLayout';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
 import ChatView from '../components/chat/ChatView';
 import MemoryPanel from '../components/memory/MemoryPanel';
 import SkillToggleList from '../components/skills/SkillToggleList';
+import ApiToggleList from '../components/apis/ApiToggleList';
 import FileExplorer from '../components/files/FileExplorer';
 import SourceControl from '../components/git/SourceControl';
 import type { SessionStatus, PermissionMode } from '../../../shared/types';
@@ -67,6 +69,7 @@ export default function ChatPage() {
   const { memory: projectMemory, update: updateProjectMemory, refresh: refreshProjectMemory } = useProjectMemory(isRealProject ? selectedProjectId : null);
   const { defaultModel, defaultThinking, defaultMode } = useModelDefaults();
   const { skills: sessionSkills, toggle: toggleSkill } = useSessionSkills(selectedSessionId, selectedProjectId);
+  const { apis: sessionApis, toggle: toggleApi } = useSessionApis(selectedSessionId, selectedProjectId);
 
   // Check if current project has a path (file explorer only for real projects)
   const currentProject = projects.find((p) => p.id === selectedProjectId);
@@ -153,7 +156,10 @@ export default function ChatPage() {
       onUpdateProjectSummary={isRealProject ? (summary) => updateProjectMemory(summary) : undefined}
     />
   ) : showSkills ? (
-    <SkillToggleList skills={sessionSkills} onToggle={toggleSkill} />
+    <>
+      <SkillToggleList skills={sessionSkills} onToggle={toggleSkill} />
+      <ApiToggleList apis={sessionApis} onToggle={toggleApi} />
+    </>
   ) : undefined;
 
   return (
