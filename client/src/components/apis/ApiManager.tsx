@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Globe, FolderOpen } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Globe, FolderOpen, Loader, Sparkles } from 'lucide-react';
 import { api } from '../../api/http';
 import type { Api, Project } from '../../../../shared/types';
 
@@ -52,6 +52,9 @@ const emptyForm: FormState = {
 export default function ApiManager({ apis, onCreate, onUpdate, onDelete }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [generateInput, setGenerateInput] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState('');
   const [form, setForm] = useState<FormState>({ ...emptyForm });
   const [projects, setProjects] = useState<Project[]>([]);
 
@@ -63,6 +66,35 @@ export default function ApiManager({ apis, onCreate, onUpdate, onDelete }: Props
 
   const parseAuthConfig = (json: string): Record<string, string> => {
     try { return JSON.parse(json || '{}'); } catch { return {}; }
+  };
+
+  const handleGenerate = async () => {
+    if (!generateInput.trim()) return;
+    setGenerating(true);
+    setGenerateError('');
+    try {
+      const result = await api.post<{
+        name: string; description: string; base_url: string;
+        auth_type: string; auth_config: Record<string, string>;
+        spec: string; icon: string;
+      }>('/apis/generate', { input: generateInput });
+      setForm({
+        name: result.name,
+        description: result.description,
+        base_url: result.base_url,
+        auth_type: result.auth_type || 'none',
+        auth_config: result.auth_config || {},
+        spec: result.spec || '',
+        scope: 'global',
+        icon: result.icon || '',
+        projectIds: [],
+      });
+      setGenerateInput('');
+    } catch (err: any) {
+      setGenerateError(err.message || 'Generation failed');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleCreate = () => {
@@ -194,8 +226,12 @@ export default function ApiManager({ apis, onCreate, onUpdate, onDelete }: Props
   const closeForm = () => {
     setShowCreate(false);
     setEditingId(null);
+    setGenerateInput('');
+    setGenerateError('');
     setForm({ ...emptyForm });
   };
+
+  const isFormFilled = !!form.name;
 
   const globalApis = apis.filter(a => a.scope === 'global');
   const projectApis = apis.filter(a => a.scope === 'project');
@@ -249,7 +285,7 @@ export default function ApiManager({ apis, onCreate, onUpdate, onDelete }: Props
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white">APIs</h2>
         <button
-          onClick={() => { setShowCreate(true); setEditingId(null); setForm({ ...emptyForm }); }}
+          onClick={() => { setShowCreate(true); setEditingId(null); setForm({ ...emptyForm }); setGenerateInput(''); setGenerateError(''); }}
           className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
         >
           <Plus size={14} /> New API
@@ -258,6 +294,41 @@ export default function ApiManager({ apis, onCreate, onUpdate, onDelete }: Props
 
       {(showCreate || editingId) && (
         <div className="mb-6 p-4 bg-[#161b22] rounded-lg border border-gray-700/50">
+          {/* Generate step -- only for new APIs, before form is filled */}
+          {showCreate && !isFormFilled && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">What API do you want to add?</label>
+              <p className="text-xs text-gray-500 mb-3">
+                Describe the API or paste a URL to its documentation. Claude will generate the configuration for you.
+              </p>
+              <textarea
+                value={generateInput}
+                onChange={(e) => setGenerateInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !generating) { e.preventDefault(); handleGenerate(); } }}
+                placeholder="e.g. Stripe payments API, or paste https://docs.stripe.com/api"
+                rows={3}
+                disabled={generating}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 resize-none disabled:opacity-50"
+              />
+              {generateError && <p className="text-xs text-red-400 mt-2">{generateError}</p>}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating || !generateInput.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded text-sm text-white"
+                >
+                  {generating ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  {generating ? 'Generating...' : 'Generate'}
+                </button>
+                <button onClick={closeForm} className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300">
+                  <X size={14} /> Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Detail form -- shown for editing or after generation */}
+          {(editingId || isFormFilled) && (<>
           <div className="flex gap-3 mb-3">
             <input
               value={form.icon}
@@ -331,6 +402,7 @@ export default function ApiManager({ apis, onCreate, onUpdate, onDelete }: Props
               <X size={14} /> Cancel
             </button>
           </div>
+          </>)}
         </div>
       )}
 

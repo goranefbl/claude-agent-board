@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
+import { spawn as cpSpawn } from 'child_process';
 import { getDb } from '../db/connection.js';
 
 const router = Router();
@@ -45,6 +46,94 @@ router.get('/:id', (req, res) => {
   const row = getDb().prepare('SELECT * FROM apis WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(attachProjectIds([row])[0]);
+});
+
+// Generate API config from description or URL using Claude
+router.post('/generate', async (req, res) => {
+  const { input } = req.body;
+  if (!input || !input.trim()) return res.status(400).json({ error: 'input required' });
+
+  try {
+    const trimmed = input.trim();
+    const isUrl = /^https?:\/\//i.test(trimmed) || /\.\w{2,}\//.test(trimmed);
+
+    // If URL, fetch the content server-side first and feed it to Claude
+    let fetchedContent = '';
+    if (isUrl) {
+      try {
+        let url = trimmed;
+        if (!url.startsWith('http')) url = `https://${url}`;
+        const resp = await fetch(url);
+        if (resp.ok) {
+          fetchedContent = await resp.text();
+          // Trim to reasonable size
+          if (fetchedContent.length > 15000) fetchedContent = fetchedContent.slice(0, 15000) + '\n...(truncated)';
+        }
+      } catch { /* ignore fetch errors, Claude can still work with the URL description */ }
+    }
+
+    const contentSection = fetchedContent
+      ? `\n\nFetched content from the URL:\n${fetchedContent}`
+      : '';
+
+    const prompt = `You are an API configuration generator. The user will describe an external REST API they want to register, or provide a URL to API documentation.
+
+Your job is to produce a JSON object with these fields:
+- name: short human-readable API name (e.g. "Stripe API", "GitHub API")
+- description: 1-2 sentence description of what this API does
+- base_url: the base URL for API requests (e.g. "https://api.stripe.com/v1")
+- auth_type: one of "none", "bearer", "header", "query", "basic"
+- auth_config: object with auth details. For bearer: {"token":""}. For header: {"header_name":"X-Api-Key","header_value":""}. For query: {"param_name":"api_key","param_value":""}. For basic: {"username":"","password":""}. For none: {}. Leave credential values empty for the user to fill in.
+- spec: endpoint documentation - list the main endpoints with method, path, description, and key parameters. Format as readable text the agent can reference.
+- icon: a single emoji that represents this API
+
+IMPORTANT: Respond with ONLY a valid JSON object, no markdown code fences, no explanation. Just the raw JSON.
+
+User input: ${input}${contentSection}`;
+
+    const result = await new Promise<string>((resolve, reject) => {
+      const args = ['--print', '--model', 'sonnet', '--dangerously-skip-permissions', '--', prompt];
+      const child = cpSpawn('claude', args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+        env: { ...process.env, HOME: process.env.HOME || '/home/claude' },
+      });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+      child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+      child.on('close', (code) => {
+        if (code === 0 && stdout.trim()) resolve(stdout.trim());
+        else reject(new Error(stderr || `exit code ${code}`));
+      });
+      child.on('error', reject);
+    });
+
+    // Parse JSON from Claude's response
+    let jsonStr = result;
+    const fenceMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) jsonStr = fenceMatch[1].trim();
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed.name || !parsed.base_url) {
+      return res.status(422).json({ error: 'Could not generate a valid API config from that input' });
+    }
+
+    res.json({
+      name: parsed.name,
+      description: parsed.description || '',
+      base_url: parsed.base_url,
+      auth_type: parsed.auth_type || 'none',
+      auth_config: parsed.auth_config || {},
+      spec: parsed.spec || '',
+      icon: parsed.icon || '🔌',
+    });
+  } catch (err: any) {
+    console.error('[APIS] Generate error:', err);
+    res.status(500).json({ error: err.message || 'Failed to generate API config' });
+  }
 });
 
 // Create API
