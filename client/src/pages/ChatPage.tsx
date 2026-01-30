@@ -79,14 +79,19 @@ export default function ChatPage() {
     }
   }, [hasProject, activeView]);
 
-  // Auto-select first session when none is selected (don't auto-create)
+  // Auto-select first session or auto-create one when none exist
   useEffect(() => {
     if (selectedSessionId) return;
     if (sessionsLoading) return;
     if (sessions.length > 0) {
       setSelectedSessionId(sessions[0].id);
+    } else if (agents.length > 0) {
+      const defaultAgent = agents.find((a) => a.is_default) || agents[0];
+      createSession(defaultAgent.id).then((s) => {
+        if (s) setSelectedSessionId(s.id);
+      });
     }
-  }, [sessions, selectedSessionId, sessionsLoading]);
+  }, [sessions, selectedSessionId, sessionsLoading, agents]);
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId);
   const selectedAgentId = selectedSession?.agent_id || null;

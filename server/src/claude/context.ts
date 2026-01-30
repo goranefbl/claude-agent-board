@@ -15,7 +15,7 @@ interface ContextResult {
 
 // Write/destructive tools blocked in Explore mode
 const EXPLORE_DISALLOWED_TOOLS = [
-  'Bash', 'Write', 'Edit', 'NotebookEdit',
+  'Bash', 'Write', 'Edit', 'NotebookEdit', 'Task', 'TaskOutput',
   'mcp__chrome-devtools__click',
   'mcp__chrome-devtools__fill',
   'mcp__chrome-devtools__fill_form',
@@ -128,6 +128,7 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
     // Block all write/destructive tools via disallowedTools (allowedTools is ignored by CLI)
     allowedTools = undefined;
     disallowedTools = EXPLORE_DISALLOWED_TOOLS;
+    systemParts.push(`You are in READ-ONLY "Explore" mode. You can ONLY read and search — you cannot create, modify, or delete any files or run any commands. The tools Bash, Write, Edit, NotebookEdit, and Task are disabled. If the user asks you to make changes, explain that you are in Explore mode and cannot modify anything. Do NOT claim you have made changes when you have not.`);
   } else if (effectiveMode === 'ask') {
     // Add system prompt instruction to confirm before edits
     systemParts.push(`CRITICAL RULE - "Ask" mode is active. You MUST follow this protocol strictly:
@@ -152,6 +153,6 @@ This is a hard constraint. Do not combine your confirmation question with tool e
     fullMessage: messageParts.join('\n'),
     allowedTools: allowedTools?.length ? allowedTools : undefined,
     disallowedTools: disallowedTools?.length ? disallowedTools : undefined,
-    maxTurns: effectiveMode === 'ask' ? 1 : undefined,
+    maxTurns: undefined,
   };
 }

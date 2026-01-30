@@ -82,19 +82,19 @@ export function spawnClaude(
   }
 
   if (options.allowedTools && options.allowedTools.length > 0) {
-    args.push('--allowedTools', ...options.allowedTools);
+    args.push('--allowedTools', options.allowedTools.join(','));
   }
 
   if (options.disallowedTools && options.disallowedTools.length > 0) {
-    args.push('--disallowedTools', ...options.disallowedTools);
+    args.push('--disallowedTools', options.disallowedTools.join(','));
   }
 
   if (options.maxTurns) {
     args.push('--max-turns', String(options.maxTurns));
   }
 
-  // Pass user message as the prompt argument
-  args.push(userMessage);
+  // Pass user message as the prompt argument; use -- to prevent misparse
+  args.push('--', userMessage);
 
   console.log(`[SPAWN] Running: claude ${args.map(a => a.length > 80 ? a.substring(0, 80) + '...' : a).join(' ')}`);
   console.log(`[SPAWN] Args count: ${args.length}`);
@@ -195,18 +195,36 @@ function processEvent(
     }
   }
 
-  if (raw.type === 'user' && raw.tool_use_result) {
-    const result = typeof raw.tool_use_result.result === 'string'
-      ? raw.tool_use_result.result
-      : JSON.stringify(raw.tool_use_result.result);
-    // Attach result to last matching tool interaction
-    const last = toolInteractions[toolInteractions.length - 1];
-    if (last) last.result = result;
-    onEvent({
-      type: 'tool_result',
-      tool: last?.tool || 'unknown',
-      toolResult: result.substring(0, 2000), // Truncate for WS
-    });
+  if (raw.type === 'user') {
+    // Handle tool results - CLI sends them as message.content array with tool_result blocks
+    if (raw.message?.content) {
+      for (const block of raw.message.content) {
+        if (block.type === 'tool_result') {
+          const result = typeof block.content === 'string'
+            ? block.content
+            : JSON.stringify(block.content || '');
+          const last = toolInteractions[toolInteractions.length - 1];
+          if (last) last.result = result;
+          onEvent({
+            type: 'tool_result',
+            tool: last?.tool || 'unknown',
+            toolResult: result.substring(0, 2000),
+          });
+        }
+      }
+    } else if (raw.tool_use_result) {
+      // Legacy format fallback
+      const result = typeof raw.tool_use_result.result === 'string'
+        ? raw.tool_use_result.result
+        : JSON.stringify(raw.tool_use_result.result);
+      const last = toolInteractions[toolInteractions.length - 1];
+      if (last) last.result = result;
+      onEvent({
+        type: 'tool_result',
+        tool: last?.tool || 'unknown',
+        toolResult: result.substring(0, 2000),
+      });
+    }
   }
 
   if (raw.type === 'result') {
