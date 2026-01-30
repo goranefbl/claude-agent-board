@@ -232,7 +232,7 @@ function spawnForSession(sessionId: string, content: string, images?: string[], 
           const isInterrupted = !!event.interrupted;
 
           // Save assistant message with tool interactions and interrupted flag
-          db.prepare('INSERT INTO messages (id, session_id, role, content, tool_use, interrupted) VALUES (?, ?, ?, ?, ?, ?)')
+          db.prepare('INSERT OR REPLACE INTO messages (id, session_id, role, content, tool_use, interrupted) VALUES (?, ?, ?, ?, ?, ?)')
             .run(
               assistantMsgId,
               sessionId,
