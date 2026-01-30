@@ -133,18 +133,8 @@ export function setupWebSocket(wss: WebSocketServer) {
 }
 
 function handleChatSend(ws: WebSocket, sessionId: string, content: string, images?: string[], model?: string, thinking?: boolean, mode?: PermissionMode) {
-  const db = getDb();
-
-  // Save user message
-  const userMsgId = uuid();
-  db.prepare('INSERT INTO messages (id, session_id, role, content) VALUES (?, ?, ?, ?)')
-    .run(userMsgId, sessionId, 'user', content);
-  console.log(`[CHAT] Saved user message ${userMsgId}`);
-
-  // Update session timestamp
-  db.prepare("UPDATE sessions SET updated_at = datetime('now') WHERE id = ?").run(sessionId);
-
-  // If already streaming, queue the message instead of spawning
+  // If already streaming, queue without saving to DB yet (save when dequeued
+  // so the user message appears after the current assistant response)
   if (streamingSessions.has(sessionId)) {
     const queue = messageQueue.get(sessionId) || [];
     queue.push({ content, images, model, thinking, mode });
@@ -154,7 +144,17 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
     return;
   }
 
+  saveUserMessage(sessionId, content);
   spawnForSession(sessionId, content, images, model, thinking, mode);
+}
+
+function saveUserMessage(sessionId: string, content: string) {
+  const db = getDb();
+  const userMsgId = uuid();
+  db.prepare('INSERT INTO messages (id, session_id, role, content) VALUES (?, ?, ?, ?)')
+    .run(userMsgId, sessionId, 'user', content);
+  db.prepare("UPDATE sessions SET updated_at = datetime('now') WHERE id = ?").run(sessionId);
+  console.log(`[CHAT] Saved user message ${userMsgId}`);
 }
 
 function spawnForSession(sessionId: string, content: string, images?: string[], model?: string, thinking?: boolean, mode?: PermissionMode) {
@@ -272,6 +272,7 @@ function spawnForSession(sessionId: string, content: string, images?: string[], 
               if (queue.length === 0) {
                 messageQueue.delete(sessionId);
               }
+              saveUserMessage(sessionId, next.content);
               setTimeout(() => spawnForSession(sessionId, next.content, next.images, next.model, next.thinking, next.mode), 0);
             }
           } else {
