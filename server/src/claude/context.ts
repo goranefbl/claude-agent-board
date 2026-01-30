@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection.js';
-import type { Skill, Memory, Message, PermissionMode } from '../../../shared/types.js';
+import type { Skill, Memory, Message, PermissionMode, Api } from '../../../shared/types.js';
 
 const MAX_HISTORY = 20;
 
@@ -88,6 +88,46 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
 
   if (skills.length > 0) {
     systemParts.push('Active skills:\n' + skills.map(s => `- ${s.name}: ${s.prompt}`).join('\n'));
+  }
+
+  // Enabled APIs
+  const apis = db.prepare(`
+    SELECT a.name, a.description, a.base_url, a.auth_type, a.auth_config, a.spec FROM apis a
+    JOIN session_apis sa ON sa.api_id = a.id
+    WHERE sa.session_id = ? AND sa.enabled = 1
+    ORDER BY a.name ASC
+  `).all(sessionId) as Pick<Api, 'name' | 'description' | 'base_url' | 'auth_type' | 'auth_config' | 'spec'>[];
+
+  if (apis.length > 0) {
+    const apiDocs = apis.map(a => {
+      const lines = [`- ${a.name}: ${a.description || 'No description'}`, `  Base URL: ${a.base_url}`];
+      if (a.auth_type !== 'none') {
+        try {
+          const config = JSON.parse(a.auth_config || '{}');
+          switch (a.auth_type) {
+            case 'bearer':
+              lines.push(`  Auth: Include header "Authorization: Bearer ${config.token || '<token>'}"`);
+              break;
+            case 'header':
+              lines.push(`  Auth: Include header "${config.header_name || 'X-Api-Key'}: ${config.header_value || '<value>'}"`);
+              break;
+            case 'query':
+              lines.push(`  Auth: Include query parameter "${config.param_name || 'api_key'}=${config.param_value || '<value>'}"`);
+              break;
+            case 'basic':
+              lines.push(`  Auth: Use HTTP Basic Auth with username "${config.username || ''}" and password "${config.password || ''}"`);
+              break;
+          }
+        } catch {
+          lines.push(`  Auth type: ${a.auth_type}`);
+        }
+      }
+      if (a.spec) {
+        lines.push(`  API docs:\n${a.spec}`);
+      }
+      return lines.join('\n');
+    }).join('\n\n');
+    systemParts.push('Available APIs (use WebFetch or curl to call these):\n' + apiDocs);
   }
 
   // Project memory

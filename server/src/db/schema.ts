@@ -157,6 +157,34 @@ export function createSchema() {
       PRIMARY KEY (skill_id, project_id)
     );
 
+    CREATE TABLE IF NOT EXISTS apis (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      base_url TEXT NOT NULL,
+      auth_type TEXT NOT NULL DEFAULT 'none',
+      auth_config TEXT NOT NULL DEFAULT '{}',
+      spec TEXT NOT NULL DEFAULT '',
+      scope TEXT NOT NULL DEFAULT 'global',
+      icon TEXT NOT NULL DEFAULT '🔌',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS api_projects (
+      api_id TEXT NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      PRIMARY KEY (api_id, project_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS session_apis (
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      api_id TEXT NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (session_id, api_id)
+    );
+
     CREATE TABLE IF NOT EXISTS mcp_servers (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

@@ -95,6 +95,24 @@ export interface SessionSkill {
   enabled: number;
 }
 
+export type ApiAuthType = 'none' | 'bearer' | 'header' | 'query' | 'basic';
+
+export interface Api {
+  id: string;
+  name: string;
+  description: string;
+  base_url: string;
+  auth_type: ApiAuthType;
+  auth_config: string;
+  spec: string;
+  scope: 'global' | 'project';
+  project_ids: string[];
+  icon: string;
+  enabled: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface McpServer {
   id: string;
   name: string;

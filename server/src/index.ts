@@ -20,6 +20,7 @@ import settingsRouter from './routes/settings.js';
 import filesRouter from './routes/files.js';
 import gitRouter from './routes/git.js';
 import mcpsRouter from './routes/mcps.js';
+import apisRouter from './routes/apis.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
@@ -49,6 +50,7 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/git', gitRouter);
 app.use('/api/mcps', mcpsRouter);
+app.use('/api/apis', apisRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // Image upload for chat — saves base64 image to temp file, returns path
