@@ -67,6 +67,8 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
         `- Preview URL: https://${folderName}.wpgens.com/ (subdomain proxies to port ${session.dev_port})`,
         `- Static files are also at: https://agents.wpgens.com/preview/${folderName}/`,
         `- IMPORTANT: Do NOT set basePath, PUBLIC_URL, or any path prefix in the project config. The app is served at the root "/" via subdomain.`,
+        `- IMPORTANT: Avoid restarting the dev server unless absolutely necessary (e.g. config changes, dependency updates). Hot reload handles most code changes automatically.`,
+        `- If you must restart the dev server, after starting it wait for it to be ready before telling the user it's available. Verify with: curl --retry 5 --retry-delay 2 --retry-all-errors -s -o /dev/null -w "%{http_code}" http://localhost:${session.dev_port}`,
       );
     } else {
       envLines.push(
