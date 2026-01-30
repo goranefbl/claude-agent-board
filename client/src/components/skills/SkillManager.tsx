@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Download, Globe, FolderOpen } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Globe, FolderOpen, Loader, Sparkles } from 'lucide-react';
 import { api } from '../../api/http';
 import type { Skill, Project } from '../../../../shared/types';
 
@@ -10,13 +10,6 @@ interface CreateData {
   scope?: string;
   project_ids?: string[];
   icon?: string;
-  globs?: string[];
-}
-
-interface ImportData {
-  url: string;
-  scope?: string;
-  project_ids?: string[];
 }
 
 interface Props {
@@ -24,21 +17,17 @@ interface Props {
   onCreate: (data: CreateData) => void;
   onUpdate: (id: string, data: Partial<Skill> & { project_ids?: string[] }) => void;
   onDelete: (id: string) => void;
-  onImport: (data: ImportData) => Promise<Skill>;
 }
 
 const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
 
-export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onImport }: Props) {
+export default function SkillManager({ skills, onCreate, onUpdate, onDelete }: Props) {
   const [showCreate, setShowCreate] = useState(false);
-  const [showImport, setShowImport] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [importUrl, setImportUrl] = useState('');
-  const [importScope, setImportScope] = useState('global');
-  const [importProjectIds, setImportProjectIds] = useState<string[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState('');
-  const [form, setForm] = useState({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡', projectIds: [] as string[] });
+  const [generateInput, setGenerateInput] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState('');
+  const [form, setForm] = useState({ name: '', description: '', prompt: '', scope: 'global', icon: '', projectIds: [] as string[] });
   const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
@@ -46,6 +35,28 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
   }, []);
 
   const realProjects = projects.filter(p => p.id !== GENERAL_PROJECT_ID);
+
+  const handleGenerate = async () => {
+    if (!generateInput.trim()) return;
+    setGenerating(true);
+    setGenerateError('');
+    try {
+      const result = await api.post<{ name: string; description: string; prompt: string; icon: string }>('/skills/generate', { input: generateInput });
+      setForm({
+        name: result.name,
+        description: result.description,
+        prompt: result.prompt,
+        scope: 'global',
+        icon: result.icon || '',
+        projectIds: [],
+      });
+      setGenerateInput('');
+    } catch (err: any) {
+      setGenerateError(err.message || 'Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleCreate = () => {
     if (!form.name || !form.prompt) return;
@@ -57,12 +68,13 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
       project_ids: form.scope === 'project' ? form.projectIds : undefined,
       icon: form.icon,
     });
-    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡', projectIds: [] });
+    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '', projectIds: [] });
     setShowCreate(false);
   };
 
   const startEdit = (s: Skill) => {
     setEditingId(s.id);
+    setShowCreate(false);
     setForm({
       name: s.name,
       description: s.description,
@@ -84,27 +96,7 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
       icon: form.icon,
     });
     setEditingId(null);
-    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡', projectIds: [] });
-  };
-
-  const handleImport = async () => {
-    if (!importUrl) return;
-    setImporting(true);
-    setImportError('');
-    try {
-      await onImport({
-        url: importUrl,
-        scope: importScope,
-        project_ids: importScope === 'project' ? importProjectIds : undefined,
-      });
-      setImportUrl('');
-      setImportProjectIds([]);
-      setShowImport(false);
-    } catch (err: any) {
-      setImportError(err.message || 'Import failed');
-    } finally {
-      setImporting(false);
-    }
+    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '', projectIds: [] });
   };
 
   const toggleProjectId = (ids: string[], id: string): string[] =>
@@ -169,9 +161,6 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
             ))}
           </div>
         )}
-        {s.globs && (
-          <p className="text-xs text-gray-600 mt-1">Globs: {s.globs}</p>
-        )}
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
         <button onClick={() => startEdit(s)} className="p-1 text-gray-400 hover:text-white">
@@ -184,124 +173,118 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
     </div>
   );
 
+  const closeForm = () => {
+    setShowCreate(false);
+    setEditingId(null);
+    setGenerateInput('');
+    setGenerateError('');
+    setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '', projectIds: [] });
+  };
+
+  const isFormFilled = !!form.name;
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white">Skills</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => { setShowImport(true); setShowCreate(false); setEditingId(null); }}
-            className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300"
-          >
-            <Download size={14} /> Import
-          </button>
-          <button
-            onClick={() => { setShowCreate(true); setShowImport(false); setEditingId(null); setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '⚡', projectIds: [] }); }}
-            className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
-          >
-            <Plus size={14} /> New Skill
-          </button>
-        </div>
+        <button
+          onClick={() => { setShowCreate(true); setEditingId(null); setForm({ name: '', description: '', prompt: '', scope: 'global', icon: '', projectIds: [] }); setGenerateInput(''); setGenerateError(''); }}
+          className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
+        >
+          <Plus size={14} /> New Skill
+        </button>
       </div>
 
-      {/* Import form */}
-      {showImport && (
-        <div className="mb-6 p-4 bg-[#161b22] rounded-lg border border-gray-700/50">
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Download size={16} /> Import Skill
-          </h3>
-          <p className="text-xs text-gray-400 mb-3">
-            Import from a skills.sh URL (e.g. skills.sh/owner/repo/skill-name) or a direct SKILL.md URL.
-          </p>
-          <input
-            value={importUrl}
-            onChange={(e) => setImportUrl(e.target.value)}
-            placeholder="https://skills.sh/vercel-labs/agent-skills/web-design-guidelines"
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 mb-3"
-          />
-          <select
-            value={importScope}
-            onChange={(e) => setImportScope(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 mb-3"
-          >
-            <option value="global">Global scope</option>
-            <option value="project">Project scope</option>
-          </select>
-          {importScope === 'project' && renderProjectPicker(importProjectIds, setImportProjectIds)}
-          {importError && <p className="text-xs text-red-400 mb-3 mt-2">{importError}</p>}
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={handleImport}
-              disabled={importing || !importUrl}
-              className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded text-sm text-white"
-            >
-              <Download size={14} /> {importing ? 'Importing...' : 'Import'}
-            </button>
-            <button
-              onClick={() => { setShowImport(false); setImportError(''); }}
-              className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300"
-            >
-              <X size={14} /> Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Create/Edit form */}
+      {/* New Skill / Edit form */}
       {(showCreate || editingId) && (
         <div className="mb-6 p-4 bg-[#161b22] rounded-lg border border-gray-700/50">
-          <div className="flex gap-3 mb-3">
-            <input
-              value={form.icon}
-              onChange={(e) => setForm({ ...form, icon: e.target.value })}
-              placeholder="⚡"
-              className="w-16 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-accent-500/50"
-            />
-            <input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Skill name"
-              className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50"
-            />
-          </div>
-          <input
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Description"
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 mb-3"
-          />
-          <textarea
-            value={form.prompt}
-            onChange={(e) => setForm({ ...form, prompt: e.target.value })}
-            placeholder="Skill prompt — what should the agent know/do when this skill is active?"
-            rows={6}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 resize-none mb-3"
-          />
-          <div className="mb-3">
-            <select
-              value={form.scope}
-              onChange={(e) => setForm({ ...form, scope: e.target.value })}
-              className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50"
-            >
-              <option value="global">Global scope</option>
-              <option value="project">Project scope</option>
-            </select>
-            {form.scope === 'project' && renderProjectPicker(form.projectIds, (ids) => setForm({ ...form, projectIds: ids }))}
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={editingId ? handleUpdate : handleCreate}
-              className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
-            >
-              <Save size={14} /> {editingId ? 'Update' : 'Create'}
-            </button>
-            <button
-              onClick={() => { setShowCreate(false); setEditingId(null); }}
-              className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300"
-            >
-              <X size={14} /> Cancel
-            </button>
-          </div>
+          {/* Generate step — only for new skills, before form is filled */}
+          {showCreate && !isFormFilled && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">What should this skill do?</label>
+              <p className="text-xs text-gray-500 mb-3">
+                Describe the skill or paste a URL (skills.sh, GitHub SKILL.md, or any link). Claude will generate the skill for you.
+              </p>
+              <textarea
+                value={generateInput}
+                onChange={(e) => setGenerateInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !generating) { e.preventDefault(); handleGenerate(); } }}
+                placeholder="e.g. Review PRs for security issues, or paste https://skills.sh/vercel-labs/agent-skills/web-design-guidelines"
+                rows={3}
+                disabled={generating}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 resize-none disabled:opacity-50"
+              />
+              {generateError && <p className="text-xs text-red-400 mt-2">{generateError}</p>}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating || !generateInput.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded text-sm text-white"
+                >
+                  {generating ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  {generating ? 'Generating...' : 'Generate'}
+                </button>
+                <button onClick={closeForm} className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300">
+                  <X size={14} /> Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Detail form — shown for editing or after generation */}
+          {(editingId || isFormFilled) && (
+            <>
+              <div className="flex gap-3 mb-3">
+                <input
+                  value={form.icon}
+                  onChange={(e) => setForm({ ...form, icon: e.target.value })}
+                  placeholder="⚡"
+                  className="w-16 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-accent-500/50"
+                />
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Skill name"
+                  className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50"
+                />
+              </div>
+              <input
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Description"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 mb-3"
+              />
+              <textarea
+                value={form.prompt}
+                onChange={(e) => setForm({ ...form, prompt: e.target.value })}
+                placeholder="Skill prompt — what should the agent know/do when this skill is active?"
+                rows={8}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-500/50 resize-none mb-3"
+              />
+              <div className="mb-3">
+                <select
+                  value={form.scope}
+                  onChange={(e) => setForm({ ...form, scope: e.target.value })}
+                  className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50"
+                >
+                  <option value="global">Global scope</option>
+                  <option value="project">Project scope</option>
+                </select>
+                {form.scope === 'project' && renderProjectPicker(form.projectIds, (ids) => setForm({ ...form, projectIds: ids }))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={editingId ? handleUpdate : handleCreate}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 rounded text-sm text-white"
+                >
+                  <Save size={14} /> {editingId ? 'Update' : 'Create'}
+                </button>
+                <button onClick={closeForm} className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300">
+                  <X size={14} /> Cancel
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -329,10 +312,10 @@ export default function SkillManager({ skills, onCreate, onUpdate, onDelete, onI
         </div>
       )}
 
-      {skills.length === 0 && (
+      {skills.length === 0 && !showCreate && (
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg mb-2">No skills yet</p>
-          <p className="text-sm">Create a skill or import one from skills.sh</p>
+          <p className="text-sm">Create a skill to teach your agents new capabilities</p>
         </div>
       )}
     </div>

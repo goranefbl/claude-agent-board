@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
+import { spawn as cpSpawn } from 'child_process';
 import { getDb } from '../db/connection.js';
 
 const router = Router();
@@ -62,6 +63,79 @@ router.post('/', (req, res) => {
   const pids: string[] = project_ids || (project_id ? [project_id] : []);
   if (pids.length > 0) syncProjectIds(db, id, pids);
   res.status(201).json(attachProjectIds([db.prepare('SELECT * FROM skills WHERE id = ?').get(id)])[0]);
+});
+
+// Generate skill from description or URL using Claude
+router.post('/generate', async (req, res) => {
+  const { input } = req.body;
+  if (!input || !input.trim()) return res.status(400).json({ error: 'input required' });
+
+  try {
+    const prompt = `You are a skill generator. The user will give you a description of what they want a skill to do, or a URL to fetch skill content from.
+
+Your job is to produce a JSON object with these fields:
+- name: short human-readable skill name
+- description: 1-2 sentence description
+- prompt: the full skill instructions (markdown). If the user gave a URL, fetch the content and use it as the prompt. If they described what the skill should do, write comprehensive instructions.
+- icon: a single emoji that represents this skill
+
+If the input contains a URL (like skills.sh, github.com, or any web URL), use the WebFetch tool to fetch the content from that URL. For skills.sh URLs like skills.sh/owner/repo/skill-name, try fetching from https://raw.githubusercontent.com/owner/repo/main/skills/skill-name/SKILL.md first. If that fails, try browsing the GitHub repo to find the correct SKILL.md path. For GitHub repo URLs, look for SKILL.md files in the repo.
+
+When you find a SKILL.md file, extract the name and description from its YAML frontmatter if present, and use the markdown body as the prompt.
+
+IMPORTANT: Respond with ONLY a valid JSON object, no markdown code fences, no explanation. Just the raw JSON:
+{"name":"...","description":"...","prompt":"...","icon":"..."}
+
+User input: ${input}`;
+
+    const result = await new Promise<string>((resolve, reject) => {
+      const args = [
+        '--print',
+        '--model', 'sonnet',
+        '--dangerously-skip-permissions',
+        '--', prompt,
+      ];
+
+      const child = cpSpawn('claude', args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+        env: { ...process.env, HOME: process.env.HOME || '/home/claude' },
+      });
+
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+      child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+      child.on('close', (code) => {
+        if (code === 0 && stdout.trim()) resolve(stdout.trim());
+        else reject(new Error(stderr || `exit code ${code}`));
+      });
+      child.on('error', reject);
+    });
+
+    // Parse JSON from Claude's response (may be wrapped in code fences)
+    let jsonStr = result;
+    const fenceMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) jsonStr = fenceMatch[1].trim();
+    // Also try to find JSON object in the response
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed.name || !parsed.prompt) {
+      return res.status(422).json({ error: 'Could not generate a valid skill from that input' });
+    }
+
+    res.json({
+      name: parsed.name,
+      description: parsed.description || '',
+      prompt: parsed.prompt,
+      icon: parsed.icon || '⚡',
+    });
+  } catch (err: any) {
+    console.error('[SKILLS] Generate error:', err);
+    res.status(500).json({ error: err.message || 'Failed to generate skill' });
+  }
 });
 
 // Import skill from URL (skills.sh or raw SKILL.md)
