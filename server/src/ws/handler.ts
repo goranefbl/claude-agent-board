@@ -37,6 +37,10 @@ async function autoSummarize(sessionId: string) {
     ).get(sessionId) as { auto_summarize: number } | undefined;
     if (!session || !session.auto_summarize) return;
 
+    // Only summarize every 5 messages to avoid excessive API calls
+    const msgCount = db.prepare('SELECT COUNT(*) as c FROM messages WHERE session_id = ?').get(sessionId) as { c: number };
+    if (msgCount.c < 4 || msgCount.c % 5 !== 0) return;
+
     // Get last 20 messages
     const messages = db.prepare(
       'SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at DESC LIMIT 20'
@@ -54,8 +58,8 @@ async function autoSummarize(sessionId: string) {
       const args = [
         '--print',
         '--model', 'haiku',
-        '--max-turns', '1',
-        prompt,
+        '--dangerously-skip-permissions',
+        '--', prompt,
       ];
 
       const child = cpSpawn('claude', args, {
