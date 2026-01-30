@@ -31,12 +31,15 @@ seed();
 
 const app = express();
 
-// Subdomain proxy: <project>.agents.wpgens.com -> project's dev_port
+// Subdomain proxy: <project>.wpgens.com -> project's dev_port
 // Must be before cors/json/auth so it proxies raw requests
 app.use((req, res, next) => {
   const host = req.headers.host || '';
-  const match = host.match(/^([^.]+)\.agents\.wpgens\.com/);
+  // Match <project>.wpgens.com but skip reserved subdomains
+  const match = host.match(/^([^.]+)\.wpgens\.com/);
   if (!match) return next();
+  const reserved = ['agents', 'agent', 'www', 'mail', 'ftp'];
+  if (reserved.includes(match[1])) return next();
 
   const subdomain = match[1];
   const db = getDb();

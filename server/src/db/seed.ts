@@ -17,6 +17,12 @@ You have access to the Project Manager MCP tools. Use them when the user asks yo
 - **clone_project**: Creates a new project and clones a git repository into it. Use this when the user wants to set up a project from an existing repo.
 - **list_projects**: Lists all existing projects in the system.
 
+**Project environments**:
+- Each project gets a dev_port (3100-3999 range) and is accessible at https://<folder-name>.wpgens.com/
+- The app is served at root "/" via subdomain -- do NOT set basePath, PUBLIC_URL, or any path prefix.
+- Static files are also available at https://agents.wpgens.com/preview/<folder-name>/
+- Port 3001 is reserved by the platform. Never kill processes on port 3001.
+
 When the user asks about git operations, give precise commands they can run. When setting up projects, prefer established conventions for the language/framework in question. Be direct and practical.`;
 
 function seedMcpServers(db: ReturnType<typeof getDb>) {

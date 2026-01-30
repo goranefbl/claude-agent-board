@@ -64,7 +64,7 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
     if (session.dev_port) {
       envLines.push(
         `- This project's dev server port is ${session.dev_port}. Always start the dev server on this port.`,
-        `- Preview URL: https://${folderName}.agents.wpgens.com/ (subdomain proxies to port ${session.dev_port})`,
+        `- Preview URL: https://${folderName}.wpgens.com/ (subdomain proxies to port ${session.dev_port})`,
         `- Static files are also at: https://agents.wpgens.com/preview/${folderName}/`,
         `- IMPORTANT: Do NOT set basePath, PUBLIC_URL, or any path prefix in the project config. The app is served at the root "/" via subdomain.`,
       );
@@ -78,7 +78,7 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
     envLines.unshift(
       '- You can create projects in /home/claude/projects/<project-name>/',
       '- Static files are served at https://agents.wpgens.com/preview/<project-name>/',
-      '- For dynamic apps, use subdomain: https://<project-name>.agents.wpgens.com/ (requires dev_port set on project)',
+      '- For dynamic apps, use subdomain: https://<project-name>.wpgens.com/ (requires dev_port set on project)',
       '- CRITICAL: Port 3001 is reserved by the platform. NEVER kill processes on port 3001. When running dev servers, use ports 3100-3999. If a port is in use, pick another port in that range instead of killing the existing process.',
     );
   }
