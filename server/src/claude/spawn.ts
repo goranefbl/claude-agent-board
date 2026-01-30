@@ -7,6 +7,7 @@ import { getDb } from '../db/connection.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MCP_CONFIG_PATH = path.join(__dirname, '..', '..', '..', 'mcp-config.json');
 const activeProcesses = new Map<string, ChildProcess>();
+const killedSessions = new Set<string>();
 
 function generateMcpConfig(): string {
   const db = getDb();
@@ -48,6 +49,7 @@ export interface StreamEvent {
   toolResult?: string;
   cost?: number;
   sessionId?: string;
+  interrupted?: boolean;
 }
 
 type EventHandler = (event: StreamEvent) => void;
@@ -154,6 +156,16 @@ export function spawnClaude(
       }
     }
 
+    // If this session was killed by the user and we have accumulated text, emit a synthetic done
+    if (killedSessions.has(sessionId)) {
+      killedSessions.delete(sessionId);
+      if (fullText) {
+        console.log(`[SPAWN] Emitting synthetic done for killed session ${sessionId}, fullText.length=${fullText.length}`);
+        onEvent({ type: 'done', content: fullText, interrupted: true });
+      }
+      return;
+    }
+
     if (code !== 0 && code !== null && !fullText) {
       console.log(`[SPAWN] Error exit. stderr: ${stderrText}`);
       onEvent({ type: 'error', content: stderrText || `Process exited with code ${code}` });
@@ -239,6 +251,7 @@ function processEvent(
 export function killProcess(sessionId: string): boolean {
   const child = activeProcesses.get(sessionId);
   if (child) {
+    killedSessions.add(sessionId);
     child.kill('SIGTERM');
     activeProcesses.delete(sessionId);
     return true;

@@ -78,6 +78,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   tool_use?: string; // JSON string of tool interactions
+  interrupted?: number;
   created_at: string;
 }
 
@@ -204,6 +205,8 @@ export interface WsDoneMessage {
   sessionId: string;
   messageId: string;
   cost?: number;
+  interrupted?: boolean;
+  hasMore?: boolean;
 }
 
 export interface WsErrorMessage {
@@ -217,6 +220,11 @@ export interface WsStreamingMessage {
   sessionIds: string[];
 }
 
+export interface WsQueuedMessage {
+  type: 'chat:queued';
+  sessionId: string;
+}
+
 export type WsClientMessage = WsSendMessage | WsStopMessage;
 export type WsServerMessage =
   | WsChunkMessage
@@ -224,4 +232,5 @@ export type WsServerMessage =
   | WsToolResultMessage
   | WsDoneMessage
   | WsErrorMessage
-  | WsStreamingMessage;
+  | WsStreamingMessage
+  | WsQueuedMessage;

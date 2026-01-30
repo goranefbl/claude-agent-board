@@ -43,6 +43,12 @@ function migrate(db: ReturnType<typeof getDb>) {
     db.exec("ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'execute'");
   }
 
+  // Add interrupted column to messages if missing
+  const msgCols = db.prepare("PRAGMA table_info(messages)").all() as { name: string }[];
+  if (!msgCols.some(c => c.name === 'interrupted')) {
+    db.exec("ALTER TABLE messages ADD COLUMN interrupted INTEGER NOT NULL DEFAULT 0");
+  }
+
   // Migrate legacy skill project_id into skill_projects junction table
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='skill_projects'").get();
   if (tables) {

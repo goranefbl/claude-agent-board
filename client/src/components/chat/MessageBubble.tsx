@@ -55,8 +55,11 @@ export default function MessageBubble({ message }: Props) {
             </div>
           </>
         )}
-        <div className={`text-xs mt-2 ${isUser ? 'text-accent-200/70' : 'text-gray-600'}`}>
-          {new Date(message.created_at).toLocaleTimeString()}
+        <div className={`text-xs mt-2 flex items-center gap-2 ${isUser ? 'text-accent-200/70' : 'text-gray-600'}`}>
+          <span>{new Date(message.created_at).toLocaleTimeString()}</span>
+          {!isUser && message.interrupted === 1 && (
+            <span className="italic text-yellow-500/70">[stopped]</span>
+          )}
         </div>
       </div>
     </div>

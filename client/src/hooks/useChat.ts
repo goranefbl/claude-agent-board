@@ -51,7 +51,7 @@ export function useChat(sessionId: string | null) {
     wsClient.connect();
   }, []);
 
-  // Subscribe to WS messages — process for current session only
+  // Subscribe to WS messages -- process for current session only
   useEffect(() => {
     if (!sessionId) return;
 
@@ -83,12 +83,20 @@ export function useChat(sessionId: string | null) {
       } else if (msg.type === 'chat:tool_result') {
         setToolActivities(prev => [...prev, { type: 'result', tool: msg.tool, result: msg.result }]);
       } else if (msg.type === 'chat:done') {
-        setStreaming(false);
+        // If hasMore, the server will spawn the next queued message -- keep streaming
+        if (msg.hasMore) {
+          // Reset stream content for the next response but stay in streaming state
+          streamRef.current = '';
+          setStreamContent('');
+          setToolActivities([]);
+        } else {
+          setStreaming(false);
+          streamRef.current = '';
+          setStreamContent('');
+          setToolActivities([]);
+        }
         setLastCost(msg.cost ?? null);
         api.get<Message[]>(`/sessions/${sessionId}/messages`).then(setMessages);
-        streamRef.current = '';
-        setStreamContent('');
-        setToolActivities([]);
       } else if (msg.type === 'chat:error') {
         setStreaming(false);
         setError(msg.error);
@@ -102,8 +110,24 @@ export function useChat(sessionId: string | null) {
   }, [sessionId]);
 
   const send = useCallback((content: string, images?: string[], model?: string, thinking?: boolean, mode?: PermissionMode) => {
-    if (!sessionId || streaming) return;
+    if (!sessionId) return;
     setError(null);
+
+    if (streaming) {
+      // Sending while streaming: add optimistic message but don't reset stream state
+      const optimistic: Message = {
+        id: 'temp-' + Date.now(),
+        session_id: sessionId,
+        role: 'user',
+        content,
+        created_at: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, optimistic]);
+      wsClient.send({ type: 'chat:send', sessionId, content, images, model, thinking, mode });
+      return;
+    }
+
+    // Not streaming: normal send flow
     setStreaming(true);
     setLastCost(null);
     streamRef.current = '';
@@ -126,8 +150,8 @@ export function useChat(sessionId: string | null) {
   const stop = useCallback(() => {
     if (!sessionId) return;
     wsClient.send({ type: 'chat:stop', sessionId });
-    setStreaming(false);
-    streamingSessionIds.delete(sessionId);
+    // Don't set streaming to false here -- the server-driven chat:done will handle it
+    // after saving the partial response
   }, [sessionId]);
 
   return { messages, streaming, streamContent, toolActivities, error, lastCost, send, stop };

@@ -52,10 +52,10 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
   useEffect(() => { if (defaultMode) setMode(defaultMode); }, [defaultMode]);
 
   useEffect(() => {
-    if (!streaming && !disabled && textareaRef.current) {
+    if (!disabled && textareaRef.current) {
       textareaRef.current.focus();
     }
-  }, [streaming, disabled]);
+  }, [disabled]);
 
   // Close model menu on outside click
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder={disabled ? 'Select a session to start chatting...' : 'Message...'}
-            disabled={disabled || streaming}
+            disabled={disabled}
             rows={3}
             className="w-full resize-none bg-transparent px-4 pt-3 pb-2 text-sm text-white placeholder-gray-600 focus:outline-none disabled:opacity-50"
           />
@@ -348,9 +348,9 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
 
             </div>
 
-            {/* Send / Stop button */}
-            <div>
-              {streaming ? (
+            {/* Send / Stop buttons */}
+            <div className="flex items-center gap-1.5">
+              {streaming && (
                 <button
                   onClick={onStop}
                   className="p-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-white transition-colors"
@@ -358,16 +358,15 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
                 >
                   <Square size={14} />
                 </button>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  disabled={!canSend}
-                  className="p-1.5 bg-accent-600 hover:bg-accent-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-white transition-colors"
-                  title="Send"
-                >
-                  <ArrowUp size={14} strokeWidth={2.5} />
-                </button>
               )}
+              <button
+                onClick={handleSubmit}
+                disabled={!canSend}
+                className="p-1.5 bg-accent-600 hover:bg-accent-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-white transition-colors"
+                title={streaming ? 'Queue message' : 'Send'}
+              >
+                <ArrowUp size={14} strokeWidth={2.5} />
+              </button>
             </div>
           </div>
         </div>

@@ -9,6 +9,16 @@ import type { WsClientMessage, WsServerMessage, PermissionMode } from '../../../
 // Track actively streaming sessions
 const streamingSessions = new Set<string>();
 
+// Message queue for messages sent while agent is working
+interface QueuedMessage {
+  content: string;
+  images?: string[];
+  model?: string;
+  thinking?: boolean;
+  mode?: PermissionMode;
+}
+const messageQueue = new Map<string, QueuedMessage[]>();
+
 let wssRef: WebSocketServer | null = null;
 
 function send(ws: WebSocket, msg: WsServerMessage) {
@@ -113,6 +123,8 @@ export function setupWebSocket(wss: WebSocketServer) {
           send(ws, { type: 'chat:error', sessionId: msg.sessionId, error: err.message });
         }
       } else if (msg.type === 'chat:stop') {
+        // Clear the queue so queued messages are discarded on stop
+        messageQueue.delete(msg.sessionId);
         killProcess(msg.sessionId);
       }
     });
@@ -132,7 +144,23 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
   // Update session timestamp
   db.prepare("UPDATE sessions SET updated_at = datetime('now') WHERE id = ?").run(sessionId);
 
-  // Build message for Claude — append image references if present
+  // If already streaming, queue the message instead of spawning
+  if (streamingSessions.has(sessionId)) {
+    const queue = messageQueue.get(sessionId) || [];
+    queue.push({ content, images, model, thinking, mode });
+    messageQueue.set(sessionId, queue);
+    console.log(`[CHAT] Queued message for session ${sessionId}, queue length=${queue.length}`);
+    broadcast({ type: 'chat:queued', sessionId });
+    return;
+  }
+
+  spawnForSession(sessionId, content, images, model, thinking, mode);
+}
+
+function spawnForSession(sessionId: string, content: string, images?: string[], model?: string, thinking?: boolean, mode?: PermissionMode) {
+  const db = getDb();
+
+  // Build message for Claude -- append image references if present
   let claudeContent = content;
   if (images && images.length > 0) {
     const imageRefs = images.map(p => `[Attached image: ${p}]`).join('\n');
@@ -147,7 +175,7 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
     console.log(`[CHAT] Full message length: ${ctx.fullMessage.length}`);
   } catch (err: any) {
     console.error(`[CHAT] Context assembly error:`, err.message);
-    send(ws, { type: 'chat:error', sessionId, error: err.message });
+    broadcast({ type: 'chat:error', sessionId, error: err.message });
     return;
   }
 
@@ -185,7 +213,7 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
           });
           break;
 
-        case 'tool_result':
+        case 'tool_result': {
           // Attach result to last tool interaction
           const last = toolInteractions[toolInteractions.length - 1];
           if (last) last.result = event.toolResult;
@@ -196,42 +224,66 @@ function handleChatSend(ws: WebSocket, sessionId: string, content: string, image
             result: event.toolResult || '',
           });
           break;
+        }
 
         case 'done': {
           streamingSessions.delete(sessionId);
           const finalText = event.content || fullText;
+          const isInterrupted = !!event.interrupted;
 
-          // Save assistant message with tool interactions
-          db.prepare('INSERT INTO messages (id, session_id, role, content, tool_use) VALUES (?, ?, ?, ?, ?)')
+          // Save assistant message with tool interactions and interrupted flag
+          db.prepare('INSERT INTO messages (id, session_id, role, content, tool_use, interrupted) VALUES (?, ?, ?, ?, ?, ?)')
             .run(
               assistantMsgId,
               sessionId,
               'assistant',
               finalText,
               toolInteractions.length > 0 ? JSON.stringify(toolInteractions) : null,
+              isInterrupted ? 1 : 0,
             );
+
+          // Check if there are queued messages remaining
+          const queue = messageQueue.get(sessionId) || [];
+          const hasMore = !isInterrupted && queue.length > 0;
 
           broadcast({
             type: 'chat:done',
             sessionId,
             messageId: assistantMsgId,
             cost: event.cost,
+            interrupted: isInterrupted || undefined,
+            hasMore: hasMore || undefined,
           });
 
-          // Auto-update memory (fire-and-forget)
-          autoSummarize(sessionId);
+          if (!isInterrupted) {
+            // Auto-update memory (fire-and-forget)
+            autoSummarize(sessionId);
 
-          // Auto-title on first exchange
-          const msgCount = db.prepare('SELECT COUNT(*) as c FROM messages WHERE session_id = ?').get(sessionId) as { c: number };
-          if (msgCount.c === 2) {
-            const title = content.substring(0, 60) + (content.length > 60 ? '...' : '');
-            db.prepare("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, sessionId);
+            // Auto-title on first exchange
+            const msgCount = db.prepare('SELECT COUNT(*) as c FROM messages WHERE session_id = ?').get(sessionId) as { c: number };
+            if (msgCount.c === 2) {
+              const title = content.substring(0, 60) + (content.length > 60 ? '...' : '');
+              db.prepare("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, sessionId);
+            }
+
+            // Process next queued message if any
+            if (queue.length > 0) {
+              const next = queue.shift()!;
+              if (queue.length === 0) {
+                messageQueue.delete(sessionId);
+              }
+              setTimeout(() => spawnForSession(sessionId, next.content, next.images, next.model, next.thinking, next.mode), 0);
+            }
+          } else {
+            // Interrupted: discard any queued messages
+            messageQueue.delete(sessionId);
           }
           break;
         }
 
         case 'error':
           streamingSessions.delete(sessionId);
+          messageQueue.delete(sessionId);
           broadcast({ type: 'chat:error', sessionId, error: event.content || 'Unknown error' });
           break;
       }
