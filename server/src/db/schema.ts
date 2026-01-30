@@ -34,6 +34,9 @@ function migrate(db: ReturnType<typeof getDb>) {
   if (!projCols.some(c => c.name === 'auto_summarize')) {
     db.exec("ALTER TABLE projects ADD COLUMN auto_summarize INTEGER NOT NULL DEFAULT 1");
   }
+  if (!projCols.some(c => c.name === 'dev_port')) {
+    db.exec("ALTER TABLE projects ADD COLUMN dev_port INTEGER DEFAULT NULL");
+  }
 
   // Add mode column to sessions if missing
   if (!sessCols.some(c => c.name === 'mode')) {

@@ -22,6 +22,7 @@ export default function ProjectSettingsPage() {
   const [gitProtectedBranches, setGitProtectedBranches] = useState('');
   const [color, setColor] = useState('');
   const [autoSummarize, setAutoSummarize] = useState(true);
+  const [devPort, setDevPort] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const { memory: projectMemory, update: updateProjectMemory } = useProjectMemory(id || null);
@@ -39,6 +40,7 @@ export default function ProjectSettingsPage() {
       setGitProtectedBranches(p.git_protected_branches || '');
       setColor(p.color || '');
       setAutoSummarize(p.auto_summarize !== 0);
+      setDevPort(p.dev_port ? String(p.dev_port) : '');
     }).catch(() => navigate('/chat'));
   }, [id, navigate]);
 
@@ -53,6 +55,7 @@ export default function ProjectSettingsPage() {
         description,
         color,
         auto_summarize: autoSummarize ? 1 : 0,
+        dev_port: devPort ? parseInt(devPort) : null,
         git_origin_url: gitOriginUrl,
         git_push_disabled: gitPushDisabled ? 1 : 0,
         git_protected_branches: gitProtectedBranches,
@@ -158,6 +161,22 @@ export default function ProjectSettingsPage() {
                 <div className="text-sm text-gray-400 bg-gray-900/50 border border-gray-800 rounded px-3 py-2 font-mono">
                   {project.path}
                 </div>
+              </div>
+            )}
+
+            {project.path && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Dev Server Port</label>
+                <input
+                  type="number"
+                  value={devPort}
+                  onChange={(e) => setDevPort(e.target.value)}
+                  placeholder="e.g. 3100"
+                  min={3100}
+                  max={3999}
+                  className="w-40 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 font-mono"
+                />
+                <p className="text-xs text-gray-500 mt-1">Port for the dev server (3100-3999). The preview URL will proxy to this port when set.</p>
               </div>
             )}
 

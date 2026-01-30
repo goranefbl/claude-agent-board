@@ -57,18 +57,26 @@ router.post('/', (req, res) => {
     }).trim();
   } catch { /* not a git repo or no remote */ }
 
-  getDb().prepare('INSERT INTO projects (id, name, description, path, git_push_disabled, git_origin_url) VALUES (?, ?, ?, ?, 1, ?)').run(id, name, description, projectPath, gitOriginUrl);
+  // Auto-assign next available dev port (3100-3999)
+  const usedPorts = getDb().prepare('SELECT dev_port FROM projects WHERE dev_port IS NOT NULL ORDER BY dev_port ASC').all() as { dev_port: number }[];
+  const usedSet = new Set(usedPorts.map(r => r.dev_port));
+  let devPort: number | null = null;
+  for (let p = 3100; p <= 3999; p++) {
+    if (!usedSet.has(p)) { devPort = p; break; }
+  }
+
+  getDb().prepare('INSERT INTO projects (id, name, description, path, git_push_disabled, git_origin_url, dev_port) VALUES (?, ?, ?, ?, 1, ?, ?)').run(id, name, description, projectPath, gitOriginUrl, devPort);
   const row = getDb().prepare('SELECT * FROM projects WHERE id = ?').get(id);
   res.status(201).json(row);
 });
 
 router.put('/:id', (req, res) => {
-  const { name, description, path, git_origin_url, git_push_disabled, git_protected_branches, color, auto_summarize } = req.body;
+  const { name, description, path, git_origin_url, git_push_disabled, git_protected_branches, color, auto_summarize, dev_port } = req.body;
   const db = getDb();
   const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
-  db.prepare("UPDATE projects SET name = COALESCE(?, name), description = COALESCE(?, description), path = COALESCE(?, path), git_origin_url = COALESCE(?, git_origin_url), git_push_disabled = COALESCE(?, git_push_disabled), git_protected_branches = COALESCE(?, git_protected_branches), color = COALESCE(?, color), auto_summarize = COALESCE(?, auto_summarize), updated_at = datetime('now') WHERE id = ?")
-    .run(name ?? null, description ?? null, path ?? null, git_origin_url ?? null, git_push_disabled ?? null, git_protected_branches ?? null, color ?? null, auto_summarize ?? null, req.params.id);
+  db.prepare("UPDATE projects SET name = COALESCE(?, name), description = COALESCE(?, description), path = COALESCE(?, path), git_origin_url = COALESCE(?, git_origin_url), git_push_disabled = COALESCE(?, git_push_disabled), git_protected_branches = COALESCE(?, git_protected_branches), color = COALESCE(?, color), auto_summarize = COALESCE(?, auto_summarize), dev_port = COALESCE(?, dev_port), updated_at = datetime('now') WHERE id = ?")
+    .run(name ?? null, description ?? null, path ?? null, git_origin_url ?? null, git_push_disabled ?? null, git_protected_branches ?? null, color ?? null, auto_summarize ?? null, dev_port ?? null, req.params.id);
   res.json(db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id));
 });
 

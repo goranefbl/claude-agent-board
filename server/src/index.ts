@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createServer } from 'http';
+import http, { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { createSchema } from './db/schema.js';
 import { seed, GENERAL_PROJECT_ID } from './db/seed.js';
@@ -118,9 +118,45 @@ app.get('/api/logs', (req, res) => {
   }
 });
 
-// Serve user projects as static files at /preview/<project-name>/
+// Serve user projects: reverse proxy if dev_port set, otherwise static files
 const PROJECTS_DIR = '/home/claude/projects';
-app.use('/preview', express.static(PROJECTS_DIR, { extensions: ['html'] }));
+app.use('/preview', (req, res, next) => {
+  // Extract project folder name from URL: /preview/<folder>/...
+  const match = req.path.match(/^\/([^/]+)/);
+  if (!match) return next();
+  const folderName = match[1];
+
+  // Look up project by path to check for dev_port
+  const db = getDb();
+  const project = db.prepare("SELECT dev_port FROM projects WHERE path LIKE ?").get(`%/${folderName}`) as { dev_port: number | null } | undefined;
+
+  if (project?.dev_port) {
+    // Reverse proxy to the dev server
+    const subPath = req.url.replace(`/${folderName}`, '') || '/';
+    const proxyReq = http.request({
+      hostname: '127.0.0.1',
+      port: project.dev_port,
+      path: subPath,
+      method: req.method,
+      headers: { ...req.headers, host: `127.0.0.1:${project.dev_port}` },
+    }, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on('error', () => {
+      // Dev server not running, fall through to static
+      express.static(PROJECTS_DIR, { extensions: ['html'] })(req, res, next);
+    });
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+      req.pipe(proxyReq);
+    } else {
+      proxyReq.end();
+    }
+  } else {
+    // Static file serving (original behavior)
+    express.static(PROJECTS_DIR, { extensions: ['html'] })(req, res, next);
+  }
+});
 
 // API to list available preview projects
 app.get('/api/preview-projects', (_req, res) => {

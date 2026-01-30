@@ -10,6 +10,7 @@ export interface Project {
   git_protected_branches: string;
   color: string;
   auto_summarize: number;
+  dev_port: number | null;
   created_at: string;
   updated_at: string;
 }
