@@ -38,6 +38,8 @@ services:
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_HOME', 'https://<folder-name>.wpgens.com');
         define('WP_SITEURL', 'https://<folder-name>.wpgens.com');
+        define('FORCE_SSL_ADMIN', true);
+        if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($$_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) { $$_SERVER['HTTPS'] = 'on'; }
     depends_on:
       - db
     restart: unless-stopped
@@ -85,10 +87,18 @@ After setting up the project, save the server config using the update_server_con
 - Health check: curl against localhost on the project's dev_port
 - Recovery: docker compose down && docker compose up -d
 
+## HTTPS / Reverse Proxy Setup
+
+WordPress runs behind Cloudflare/reverse proxy. It receives HTTP internally but must respond as HTTPS. Add these to WORDPRESS_CONFIG_EXTRA in docker-compose.yml:
+- define('FORCE_SSL_ADMIN', true);
+- Trust X-Forwarded-Proto header to detect HTTPS
+
+IMPORTANT: WORDPRESS_CONFIG_EXTRA only applies during initial WordPress setup. If wp-config.php already exists in the volume, changes to WORDPRESS_CONFIG_EXTRA are IGNORED. In that case, edit wp-config.php directly inside the container (before the require_once wp-settings.php line) or reset the volume with: sudo docker compose down -v && sudo docker compose up -d
+
 ## Development Workflow
 
 - PHP changes take effect immediately (no build step, no restart needed)
-- To access WordPress admin: http://localhost:<port>/wp-admin/ (complete the install wizard on first run)
+- To access WordPress admin: https://<folder-name>.wpgens.com/wp-admin/ (complete the install wizard on first run)
 - Activate the plugin from the WordPress admin Plugins page
 - If the containers are down, run: sudo docker compose up -d
 - To reset WordPress completely: sudo docker compose down -v && sudo docker compose up -d
