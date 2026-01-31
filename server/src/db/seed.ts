@@ -4,6 +4,103 @@ import { getDb } from './connection.js';
 // Fixed ID for the General project — always exists, hidden from UI project list
 export const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
 
+const WP_PLUGIN_SKILL_PROMPT = `# WordPress Plugin Development
+
+## Project Setup
+
+When setting up a new WordPress plugin project:
+
+1. The project root IS the plugin directory. All plugin source files live at the root level.
+2. Use Docker for WordPress + MySQL. The project root is mounted into the WordPress container as a plugin.
+3. Create a docker-compose.yml in the project root with this structure:
+   - WordPress service with the project root mounted at /var/www/html/wp-content/plugins/<plugin-name>
+   - MySQL 8.0 service with a named volume for data persistence
+   - A named volume for wp-data (WordPress core files)
+   - WordPress should run on the project's assigned dev_port
+4. The .gitignore should only ignore Docker volumes (wp-data/, db-data/) and OS files. Git tracks everything else including docker-compose.yml.
+
+## Docker Compose Template
+
+\`\`\`yaml
+services:
+  wordpress:
+    image: wordpress:latest
+    ports:
+      - "\${DEV_PORT:-8080}:80"
+    volumes:
+      - .:/var/www/html/wp-content/plugins/<plugin-name>
+      - wp-data:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp
+      WORDPRESS_DB_NAME: wp
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    volumes:
+      - db-data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: wp
+      MYSQL_USER: wp
+      MYSQL_PASSWORD: wp
+    restart: unless-stopped
+
+volumes:
+  wp-data:
+  db-data:
+\`\`\`
+
+Replace <plugin-name> with the actual plugin slug. Replace \${DEV_PORT:-8080} with the project's assigned dev_port.
+
+## Plugin File Structure
+
+\`\`\`
+project-root/
+\u251c\u2500\u2500 <plugin-name>.php          # Main plugin file with plugin header
+\u251c\u2500\u2500 includes/                  # PHP classes and functions
+\u251c\u2500\u2500 assets/
+\u2502   \u251c\u2500\u2500 css/                   # Stylesheets
+\u2502   \u2514\u2500\u2500 js/                    # Scripts
+\u251c\u2500\u2500 templates/                 # Template files (if needed)
+\u251c\u2500\u2500 languages/                 # Translation files (if needed)
+\u251c\u2500\u2500 docker-compose.yml         # WordPress + MySQL dev environment
+\u251c\u2500\u2500 .gitignore                 # Ignore wp-data/, db-data/
+\u2514\u2500\u2500 README.md
+\`\`\`
+
+## Server Config
+
+After setting up the project, save the server config using the update_server_config MCP tool:
+- Start command: sudo docker compose up -d
+- Health check: curl against localhost on the project's dev_port
+- Recovery: docker compose down && docker compose up -d
+
+## Development Workflow
+
+- PHP changes take effect immediately (no build step, no restart needed)
+- To access WordPress admin: http://localhost:<port>/wp-admin/ (complete the install wizard on first run)
+- Activate the plugin from the WordPress admin Plugins page
+- If the containers are down, run: sudo docker compose up -d
+- To reset WordPress completely: sudo docker compose down -v && sudo docker compose up -d
+
+## WordPress Plugin Standards
+
+- Use proper plugin header in the main PHP file
+- Prefix all functions, classes, and hooks with the plugin slug to avoid conflicts
+- Use WordPress coding standards (4-space indentation for PHP)
+- Register activation/deactivation hooks
+- Enqueue scripts and styles properly with wp_enqueue_script/wp_enqueue_style
+- Use nonces for form security
+- Escape output with esc_html, esc_attr, esc_url
+- Sanitize input with sanitize_text_field, absint, etc.
+- Use WordPress database API ($wpdb) instead of raw SQL
+- Support internationalization with __() and _e()`;
+
 const DEVOPS_PROMPT = `You are a DevOps and project setup specialist. Help users manage their git workflow and configure projects.
 
 Your responsibilities:
@@ -66,6 +163,24 @@ export function seed() {
 
   // Seed MCP servers (always check, independent of agents)
   seedMcpServers(db);
+
+  // Ensure WordPress Plugin Dev skill exists in existing databases
+  const hasWpSkill = db.prepare("SELECT id FROM skills WHERE slug = 'wordpress-plugin-dev'").get();
+  if (!hasWpSkill) {
+    const wpSkill = {
+      id: uuid(),
+      name: 'WordPress Plugin Dev',
+      slug: 'wordpress-plugin-dev',
+      description: 'Set up and develop WordPress plugins with Docker',
+      is_global: 1,
+      scope: 'global',
+      icon: '🔌',
+    };
+    // Get the prompt from the skills array defined below (avoid duplication)
+    // For existing DBs, insert with a reference prompt that will be defined inline
+    db.prepare('INSERT INTO skills (id, name, slug, description, prompt, is_global, scope, icon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(wpSkill.id, wpSkill.name, wpSkill.slug, wpSkill.description, WP_PLUGIN_SKILL_PROMPT, wpSkill.is_global, wpSkill.scope, wpSkill.icon);
+  }
 
   const agentCount = db.prepare('SELECT COUNT(*) as c FROM agents').get() as { c: number };
   if (agentCount.c > 0) {
@@ -183,6 +298,16 @@ When writing or discussing tests:
       is_global: 1,
       scope: 'global',
       icon: '🧪',
+    },
+    {
+      id: uuid(),
+      name: 'WordPress Plugin Dev',
+      slug: 'wordpress-plugin-dev',
+      description: 'Set up and develop WordPress plugins with Docker',
+      prompt: WP_PLUGIN_SKILL_PROMPT,
+      is_global: 1,
+      scope: 'global',
+      icon: '🔌',
     },
   ];
 
