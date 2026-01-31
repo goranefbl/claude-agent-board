@@ -23,6 +23,7 @@ export default function ProjectSettingsPage() {
   const [color, setColor] = useState('');
   const [autoSummarize, setAutoSummarize] = useState(true);
   const [devPort, setDevPort] = useState<string>('');
+  const [serverConfig, setServerConfig] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const { memory: projectMemory, update: updateProjectMemory } = useProjectMemory(id || null);
@@ -41,6 +42,7 @@ export default function ProjectSettingsPage() {
       setColor(p.color || '');
       setAutoSummarize(p.auto_summarize !== 0);
       setDevPort(p.dev_port ? String(p.dev_port) : '');
+      setServerConfig(p.server_config || '');
     }).catch(() => navigate('/chat'));
   }, [id, navigate]);
 
@@ -56,6 +58,7 @@ export default function ProjectSettingsPage() {
         color,
         auto_summarize: autoSummarize ? 1 : 0,
         dev_port: devPort ? parseInt(devPort) : null,
+        server_config: serverConfig,
         git_origin_url: gitOriginUrl,
         git_push_disabled: gitPushDisabled ? 1 : 0,
         git_protected_branches: gitProtectedBranches,
@@ -177,6 +180,20 @@ export default function ProjectSettingsPage() {
                   className="w-40 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 font-mono"
                 />
                 <p className="text-xs text-gray-500 mt-1">Port for the dev server (3100-3999). The preview URL will proxy to this port when set.</p>
+              </div>
+            )}
+
+            {project.path && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Server Config</label>
+                <textarea
+                  value={serverConfig}
+                  onChange={(e) => setServerConfig(e.target.value)}
+                  rows={6}
+                  placeholder={"Start: npm run dev\nDependencies: docker start dzobs-postgres\nHealth check: curl http://localhost:3100/"}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-500/50 resize-none font-mono"
+                />
+                <p className="text-xs text-gray-500 mt-1">Startup commands, dependencies, and recovery steps. Agents use this to start and recover the dev server.</p>
               </div>
             )}
 

@@ -70,6 +70,52 @@ const TOOLS = [
       properties: {},
     },
   },
+  {
+    name: 'get_project_memory',
+    description: 'Read the shared project memory for a project. Project memory persists across all sessions and contains important context like server configuration, startup commands, and recovery steps.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_id: { type: 'string', description: 'Project ID' },
+      },
+      required: ['project_id'],
+    },
+  },
+  {
+    name: 'update_project_memory',
+    description: 'Update the shared project memory for a project. Use this to save important project context that should persist across sessions, such as: architecture decisions, known issues, working notes, and other context for future sessions.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_id: { type: 'string', description: 'Project ID' },
+        summary: { type: 'string', description: 'The full project memory content (replaces existing).' },
+      },
+      required: ['project_id', 'summary'],
+    },
+  },
+  {
+    name: 'get_server_config',
+    description: 'Read the server configuration for a project. Server config contains startup commands, dependencies, health checks, and recovery steps.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_id: { type: 'string', description: 'Project ID' },
+      },
+      required: ['project_id'],
+    },
+  },
+  {
+    name: 'update_server_config',
+    description: 'Update the server configuration for a project. Use this after setting up a new project or changing how the dev server runs. Include: start command, required services (databases, etc.), health check command, and any recovery steps.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_id: { type: 'string', description: 'Project ID' },
+        server_config: { type: 'string', description: 'Server config content. Include start command, dependencies, health check, and recovery steps.' },
+      },
+      required: ['project_id', 'server_config'],
+    },
+  },
 ];
 
 function handleInitialize(id: number | string) {
@@ -155,6 +201,64 @@ function handleToolCall(id: number | string, params: { name: string; arguments?:
 
         const list = rows.map(r => `- ${r.name} (ID: ${r.id})${r.path ? `\n  Path: ${r.path}` : ''}`).join('\n');
         return success(id, `Found ${rows.length} project(s):\n\n${list}`);
+      }
+
+      case 'get_project_memory': {
+        const projectId = args.project_id as string;
+        if (!projectId) throw new Error('project_id is required');
+
+        const row = db.prepare('SELECT summary FROM project_memory WHERE project_id = ?').get(projectId) as { summary: string | null } | undefined;
+        if (!row || !row.summary) {
+          return success(id, 'No project memory set for this project.');
+        }
+        return success(id, row.summary);
+      }
+
+      case 'update_project_memory': {
+        const projectId = args.project_id as string;
+        const summary = args.summary as string;
+        if (!projectId) throw new Error('project_id is required');
+        if (!summary) throw new Error('summary is required');
+
+        // Verify project exists
+        const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId) as { id: string } | undefined;
+        if (!project) throw new Error(`Project not found: ${projectId}`);
+
+        // Upsert project memory
+        const existing = db.prepare('SELECT id FROM project_memory WHERE project_id = ?').get(projectId);
+        if (existing) {
+          db.prepare("UPDATE project_memory SET summary = ?, updated_at = datetime('now') WHERE project_id = ?").run(summary, projectId);
+        } else {
+          const memId = randomUUID();
+          db.prepare('INSERT INTO project_memory (id, project_id, summary) VALUES (?, ?, ?)').run(memId, projectId, summary);
+        }
+
+        return success(id, 'Project memory updated successfully.');
+      }
+
+      case 'get_server_config': {
+        const projectId = args.project_id as string;
+        if (!projectId) throw new Error('project_id is required');
+
+        const row = db.prepare('SELECT server_config FROM projects WHERE id = ?').get(projectId) as { server_config: string | null } | undefined;
+        if (!row) throw new Error(`Project not found: ${projectId}`);
+        if (!row.server_config) {
+          return success(id, 'No server config set for this project.');
+        }
+        return success(id, row.server_config);
+      }
+
+      case 'update_server_config': {
+        const projectId = args.project_id as string;
+        const serverConfig = args.server_config as string;
+        if (!projectId) throw new Error('project_id is required');
+        if (!serverConfig) throw new Error('server_config is required');
+
+        const proj = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId) as { id: string } | undefined;
+        if (!proj) throw new Error(`Project not found: ${projectId}`);
+
+        db.prepare("UPDATE projects SET server_config = ?, updated_at = datetime('now') WHERE id = ?").run(serverConfig, projectId);
+        return success(id, 'Server config updated successfully.');
       }
 
       default:

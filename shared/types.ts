@@ -11,6 +11,7 @@ export interface Project {
   color: string;
   auto_summarize: number;
   dev_port: number | null;
+  server_config: string;
   created_at: string;
   updated_at: string;
 }

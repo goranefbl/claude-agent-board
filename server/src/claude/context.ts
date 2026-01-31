@@ -33,12 +33,12 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
 
   // Get agent info + project path
   const session = db.prepare(`
-    SELECT a.system_prompt, a.name as agent_name, a.model, p.path as project_path, p.name as project_name, p.id as project_id, p.dev_port
+    SELECT a.system_prompt, a.name as agent_name, a.model, p.path as project_path, p.name as project_name, p.id as project_id, p.dev_port, p.server_config
     FROM sessions s
     JOIN agents a ON s.agent_id = a.id
     JOIN projects p ON s.project_id = p.id
     WHERE s.id = ?
-  `).get(sessionId) as { system_prompt: string; agent_name: string; model: string; project_path: string | null; project_name: string; project_id: string; dev_port: number | null } | undefined;
+  `).get(sessionId) as { system_prompt: string; agent_name: string; model: string; project_path: string | null; project_name: string; project_id: string; dev_port: number | null; server_config: string | null } | undefined;
 
   if (!session) throw new Error('Session not found');
 
@@ -69,6 +69,7 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
         `- IMPORTANT: Do NOT set basePath, PUBLIC_URL, or any path prefix in the project config. The app is served at the root "/" via subdomain.`,
         `- IMPORTANT: Avoid restarting the dev server unless absolutely necessary (e.g. config changes, dependency updates). Hot reload handles most code changes automatically.`,
         `- If you must restart the dev server, after starting it wait for it to be ready before telling the user it's available. Verify with: curl --retry 5 --retry-delay 2 --retry-all-errors -s -o /dev/null -w "%{http_code}" http://localhost:${session.dev_port}`,
+        `- SERVER HEALTH CHECK: At the start of each session, verify the dev server is running: ss -tlnp | grep ${session.dev_port}. If nothing is listening, check the Server Config section below for startup instructions. If no server config exists, detect the stack from project files (package.json, requirements.txt, docker-compose.yml, etc.) and start it. After starting, verify with a health check. If you set up a new project or change the startup process, save the server config using the update_server_config MCP tool so future sessions know how to recover.`,
       );
     } else {
       envLines.push(
@@ -144,6 +145,11 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
       return lines.join('\n');
     }).join('\n\n');
     systemParts.push('Available APIs (use WebFetch or curl to call these):\n' + apiDocs);
+  }
+
+  // Server config (dedicated field for startup/recovery instructions)
+  if (session.server_config) {
+    systemParts.push(`Server config (startup and recovery instructions for this project):\n${session.server_config}`);
   }
 
   // Project memory

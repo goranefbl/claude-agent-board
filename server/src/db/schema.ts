@@ -37,6 +37,9 @@ function migrate(db: ReturnType<typeof getDb>) {
   if (!projCols.some(c => c.name === 'dev_port')) {
     db.exec("ALTER TABLE projects ADD COLUMN dev_port INTEGER DEFAULT NULL");
   }
+  if (!projCols.some(c => c.name === 'server_config')) {
+    db.exec("ALTER TABLE projects ADD COLUMN server_config TEXT NOT NULL DEFAULT ''");
+  }
 
   // Add mode column to sessions if missing
   if (!sessCols.some(c => c.name === 'mode')) {
