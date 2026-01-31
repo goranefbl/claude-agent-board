@@ -73,7 +73,7 @@ export default function ProjectSettingsPage() {
 
   const handleDelete = async () => {
     if (!id || !project) return;
-    if (!window.confirm(`Delete "${project.name}"? All sessions and messages will be permanently lost.`)) return;
+    if (!window.confirm(`Delete "${project.name}"?\n\nThis will permanently:\n- Delete all sessions and messages\n- Stop and remove Docker containers and volumes\n- Kill any running dev server on port ${devPort || 'N/A'}\n- Delete the project folder from disk${project.path ? ` (${project.path})` : ''}\n\nThis cannot be undone.`)) return;
     await api.del(`/projects/${id}`);
     navigate('/chat');
   };

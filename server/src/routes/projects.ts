@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import { mkdirSync, existsSync } from 'fs';
+import { mkdirSync, existsSync, rmSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { getDb } from '../db/connection.js';
@@ -81,7 +81,32 @@ router.put('/:id', (req, res) => {
 });
 
 router.delete('/:id', (req, res) => {
-  getDb().prepare('DELETE FROM projects WHERE id = ?').run(req.params.id);
+  const db = getDb();
+  const project = db.prepare('SELECT path, dev_port FROM projects WHERE id = ?').get(req.params.id) as { path: string | null; dev_port: number | null } | undefined;
+
+  if (project?.path && existsSync(project.path)) {
+    // Stop Docker containers if docker-compose.yml exists
+    const composePath = join(project.path, 'docker-compose.yml');
+    if (existsSync(composePath)) {
+      try {
+        execSync('sudo docker compose down -v', { cwd: project.path, timeout: 30_000, stdio: 'pipe' });
+      } catch { /* ignore if docker not running or compose fails */ }
+    }
+
+    // Kill any process on the dev port
+    if (project.dev_port) {
+      try {
+        execSync(`fuser -k ${project.dev_port}/tcp`, { timeout: 5_000, stdio: 'pipe' });
+      } catch { /* ignore if nothing on port */ }
+    }
+
+    // Remove project folder
+    try {
+      rmSync(project.path, { recursive: true, force: true });
+    } catch { /* ignore permission errors */ }
+  }
+
+  db.prepare('DELETE FROM projects WHERE id = ?').run(req.params.id);
   res.status(204).end();
 });
 
