@@ -35,6 +35,9 @@ services:
       WORDPRESS_DB_USER: wp
       WORDPRESS_DB_PASSWORD: wp
       WORDPRESS_DB_NAME: wp
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', 'https://<folder-name>.wpgens.com');
+        define('WP_SITEURL', 'https://<folder-name>.wpgens.com');
     depends_on:
       - db
     restart: unless-stopped
@@ -55,7 +58,9 @@ volumes:
   db-data:
 \`\`\`
 
-Replace <plugin-name> with the actual plugin slug. Replace \${DEV_PORT:-8080} with the project's assigned dev_port.
+Replace <plugin-name> with the actual plugin slug. Replace \${DEV_PORT:-8080} with the project's assigned dev_port. Replace <folder-name> with the project's folder name (used for the subdomain URL).
+
+CRITICAL: WP_HOME and WP_SITEURL must be set to the subdomain URL (https://<folder-name>.wpgens.com) WITHOUT any port number. The subdomain proxy handles port mapping. If these are wrong or missing, WordPress will redirect to 127.0.0.1 or the wrong URL. These MUST be set in docker-compose.yml BEFORE the first run.
 
 ## Plugin File Structure
 
