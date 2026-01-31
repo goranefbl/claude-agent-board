@@ -45,7 +45,7 @@ function proxyToDevServer(
     port,
     path: req.url,
     method: req.method,
-    headers: { ...req.headers, host: `127.0.0.1:${port}`, 'x-forwarded-proto': 'https', 'x-forwarded-host': req.headers.host || '' },
+    headers: { ...req.headers, 'x-forwarded-proto': 'https', 'x-forwarded-host': req.headers.host || '', 'x-forwarded-for': req.socket.remoteAddress || '' },
   }, (proxyRes) => {
     const status = proxyRes.statusCode || 502;
     // Retry on 404 for page/document requests (likely server still initializing)
@@ -203,7 +203,7 @@ app.use('/preview', (req, res, next) => {
       port: project.dev_port,
       path: subPath,
       method: req.method,
-      headers: { ...req.headers, host: `127.0.0.1:${project.dev_port}`, 'x-forwarded-proto': 'https', 'x-forwarded-host': req.headers.host || '' },
+      headers: { ...req.headers, 'x-forwarded-proto': 'https', 'x-forwarded-host': req.headers.host || '', 'x-forwarded-for': req.socket.remoteAddress || '' },
     }, (proxyRes) => {
       res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
       proxyRes.pipe(res);
