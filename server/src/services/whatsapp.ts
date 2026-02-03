@@ -1,16 +1,18 @@
-import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth } = pkg;
+import makeWASocket, {
+  DisconnectReason,
+  useMultiFileAuthState,
+  WASocket,
+  proto,
+} from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import os from 'os';
 import { fileURLToPath } from 'url';
 import { EventEmitter } from 'events';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Generate MCP config path in temp directory (will be populated by caller)
-const MCP_CONFIG_PATH = path.join(os.tmpdir(), 'whatsapp-mcp-config.json');
+const AUTH_DIR = path.join(__dirname, '..', '..', '..', 'whatsapp-auth');
 
 export interface WhatsAppStatus {
   connected: boolean;
@@ -19,7 +21,7 @@ export interface WhatsAppStatus {
 }
 
 class WhatsAppService extends EventEmitter {
-  private client: InstanceType<typeof Client> | null = null;
+  private socket: WASocket | null = null;
   private status: WhatsAppStatus = { connected: false };
   private qrCode: string | null = null;
   private initializing = false;
@@ -43,76 +45,86 @@ class WhatsAppService extends EventEmitter {
   }
 
   async initialize(): Promise<void> {
-    if (this.client || this.initializing) return;
+    if (this.socket || this.initializing) return;
     this.initializing = true;
 
-    console.log('[WhatsApp] Initializing...');
+    console.log('[WhatsApp] Initializing with Baileys...');
 
-    this.client = new Client({
-      authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth') }),
-      puppeteer: {
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-      },
-    });
-
-    this.client.on('qr', (qr: string) => {
-      console.log('[WhatsApp] QR code received');
-      this.qrCode = qr;
-      this.emit('qr', qr);
-    });
-
-    this.client.on('ready', async () => {
-      console.log('[WhatsApp] Client ready');
-      this.status.connected = true;
-      try {
-        const info = this.client?.info;
-        this.status.phoneNumber = info?.wid?.user || 'Unknown';
-      } catch {
-        this.status.phoneNumber = 'Connected';
-      }
-      this.qrCode = null;
-      this.emit('ready');
-    });
-
-    this.client.on('authenticated', () => {
-      console.log('[WhatsApp] Authenticated');
-    });
-
-    this.client.on('auth_failure', (msg: string) => {
-      console.error('[WhatsApp] Auth failed:', msg);
-      this.status.connected = false;
-      this.emit('auth_failure', msg);
-    });
-
-    this.client.on('disconnected', (reason: string) => {
-      console.log('[WhatsApp] Disconnected:', reason);
-      this.status.connected = false;
-      this.status.phoneNumber = undefined;
-      this.emit('disconnected', reason);
-    });
-
-    this.client.on('message', async (msg: any) => {
-      await this.handleMessage(msg);
-    });
-
-    try {
-      await this.client.initialize();
-    } catch (err) {
-      console.error('[WhatsApp] Failed to initialize:', err);
-      this.initializing = false;
-      throw err;
+    // Ensure auth directory exists
+    if (!fs.existsSync(AUTH_DIR)) {
+      fs.mkdirSync(AUTH_DIR, { recursive: true });
     }
+
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+
+    this.socket = makeWASocket({
+      auth: state,
+      printQRInTerminal: false,
+    });
+
+    this.socket.ev.on('creds.update', saveCreds);
+
+    this.socket.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        console.log('[WhatsApp] QR code received');
+        this.qrCode = qr;
+        this.emit('qr', qr);
+      }
+
+      if (connection === 'close') {
+        const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+        console.log('[WhatsApp] Connection closed, reconnect:', shouldReconnect);
+
+        this.status.connected = false;
+        this.status.phoneNumber = undefined;
+        this.emit('disconnected', lastDisconnect?.error?.message || 'Connection closed');
+
+        if (shouldReconnect) {
+          this.socket = null;
+          this.initializing = false;
+          setTimeout(() => this.initialize(), 3000);
+        }
+      } else if (connection === 'open') {
+        console.log('[WhatsApp] Connected');
+        this.status.connected = true;
+        this.qrCode = null;
+
+        // Get phone number from socket
+        const user = this.socket?.user;
+        if (user) {
+          this.status.phoneNumber = user.id.split(':')[0].split('@')[0];
+        }
+
+        this.emit('ready');
+      }
+    });
+
+    this.socket.ev.on('messages.upsert', async ({ messages, type }) => {
+      if (type !== 'notify') return;
+
+      for (const msg of messages) {
+        if (!msg.message || msg.key.fromMe) continue;
+        await this.handleMessage(msg);
+      }
+    });
 
     this.initializing = false;
   }
 
-  private async handleMessage(msg: any): Promise<void> {
-    // Ignore group messages
-    if (msg.from.includes('@g.us')) return;
+  private async handleMessage(msg: proto.IWebMessageInfo): Promise<void> {
+    const jid = msg.key?.remoteJid;
+    if (!jid || jid.includes('@g.us')) return; // Ignore groups
 
-    const phone = msg.from.replace('@c.us', '');
-    console.log(`[WhatsApp] Message from ${phone}: ${msg.body}`);
+    const phone = jid.replace('@s.whatsapp.net', '');
+    const text = msg.message?.conversation ||
+                 msg.message?.extendedTextMessage?.text ||
+                 '';
+
+    if (!text) return;
+
+    console.log(`[WhatsApp] Message from ${phone}: ${text}`);
 
     try {
       // Look up user by phone number
@@ -128,23 +140,30 @@ class WhatsAppService extends EventEmitter {
       }
 
       if (!userId) {
-        await msg.reply('Your phone number is not registered. Please add your phone number in your OptimusHQ profile settings.');
+        await this.sendMessage(jid, 'Your phone number is not registered. Please add your phone number in your OptimusHQ profile settings.');
         return;
       }
 
       // Send typing indicator
-      const chat = await msg.getChat();
-      await chat.sendStateTyping();
+      await this.socket?.presenceSubscribe(jid);
+      await this.socket?.sendPresenceUpdate('composing', jid);
 
       // Process with Claude
-      const response = await this.askClaude(msg.body, phone, userId);
-      await msg.reply(response);
+      const response = await this.askClaude(text, phone, userId);
+
+      await this.socket?.sendPresenceUpdate('paused', jid);
+      await this.sendMessage(jid, response);
 
       console.log(`[WhatsApp] Reply to ${phone}: ${response.substring(0, 100)}...`);
     } catch (err: any) {
       console.error('[WhatsApp] Error handling message:', err);
-      await msg.reply('Sorry, I encountered an error. Please try again.');
+      await this.sendMessage(jid, 'Sorry, I encountered an error. Please try again.');
     }
+  }
+
+  private async sendMessage(jid: string, text: string): Promise<void> {
+    if (!this.socket) return;
+    await this.socket.sendMessage(jid, { text });
   }
 
   private async askClaude(question: string, phone: string, userId: string): Promise<string> {
@@ -162,19 +181,22 @@ Use plain text formatting, no markdown.
 User ID: ${userId}
 Phone: ${phone}`;
 
-    // Get MCP config path from generator (populated by server with DB access)
-    const mcpConfigPath = this.onGetMcpConfig ? this.onGetMcpConfig() : MCP_CONFIG_PATH;
+    // Get MCP config path from generator
+    const mcpConfigPath = this.onGetMcpConfig ? this.onGetMcpConfig() : '';
 
     return new Promise((resolve, reject) => {
       const args = [
         '--print',
         '--model', 'sonnet',
         '--dangerously-skip-permissions',
-        '--mcp-config', mcpConfigPath,
         '--system-prompt', systemPrompt,
         '--max-turns', '5',
         '--', question,
       ];
+
+      if (mcpConfigPath) {
+        args.splice(4, 0, '--mcp-config', mcpConfigPath);
+      }
 
       const child = spawn('claude', args, {
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -207,18 +229,9 @@ Phone: ${phone}`;
   }
 
   async disconnect(): Promise<void> {
-    if (this.client) {
-      try {
-        await this.client.logout();
-      } catch {
-        // Ignore logout errors
-      }
-      try {
-        await this.client.destroy();
-      } catch {
-        // Ignore destroy errors
-      }
-      this.client = null;
+    if (this.socket) {
+      await this.socket.logout();
+      this.socket = null;
     }
     this.status = { connected: false };
     this.qrCode = null;

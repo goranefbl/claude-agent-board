@@ -5,12 +5,9 @@ import path from 'path';
 import os from 'os';
 import { getDb } from '../db/connection.js';
 import { decryptEnv } from './mcps.js';
+import { whatsappService } from '../services/whatsapp.js';
 
 const router = Router();
-
-// Dynamic import for WhatsApp service (heavy dependency)
-let whatsappService: any = null;
-let whatsappInitPromise: Promise<void> | null = null;
 
 // Generate MCP config from database (same logic as spawn.ts)
 function generateMcpConfig(): string {
@@ -36,51 +33,19 @@ function generateMcpConfig(): string {
   return configPath;
 }
 
-async function getWhatsAppService() {
-  if (!whatsappService) {
-    // Import dynamically to avoid loading Puppeteer on every server start
-    // WhatsApp module is optional - not included in npm package
-    // Use variable path to prevent TypeScript from checking at compile time
-    const waPath = '../../../whatsapp/service.js';
-    let module: any;
-    try {
-      module = await import(/* webpackIgnore: true */ waPath);
-    } catch (err) {
-      throw new Error('WhatsApp integration not available. Install whatsapp module separately.');
-    }
-    whatsappService = module.whatsappService;
+// Set up user lookup
+whatsappService.setUserLookup(async (phone: string) => {
+  const db = getDb();
+  const user = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone) as { id: string } | undefined;
+  if (!user) return null;
 
-    // Set up user lookup
-    whatsappService.setUserLookup(async (phone: string) => {
-      const db = getDb();
-      const user = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone) as { id: string } | undefined;
-      if (!user) return null;
+  // Get user's general project
+  const project = db.prepare('SELECT id FROM projects WHERE user_id = ? AND is_general = 1').get(user.id) as { id: string } | undefined;
+  return project ? { userId: user.id, projectId: project.id } : null;
+});
 
-      // Get user's general project
-      const project = db.prepare('SELECT id FROM projects WHERE user_id = ? AND is_general = 1').get(user.id) as { id: string } | undefined;
-      return project ? { userId: user.id, projectId: project.id } : null;
-    });
-
-    // Set up MCP config generator (uses database)
-    whatsappService.setMcpConfigGenerator(generateMcpConfig);
-  }
-  return whatsappService;
-}
-
-// Check if WhatsApp module is installed
-let whatsappAvailable: boolean | null = null;
-
-async function checkWhatsAppAvailable(): Promise<boolean> {
-  if (whatsappAvailable !== null) return whatsappAvailable;
-  try {
-    const waPath = '../../../whatsapp/service.js';
-    await import(/* webpackIgnore: true */ waPath);
-    whatsappAvailable = true;
-  } catch {
-    whatsappAvailable = false;
-  }
-  return whatsappAvailable;
-}
+// Set up MCP config generator
+whatsappService.setMcpConfigGenerator(generateMcpConfig);
 
 // Admin only middleware
 function adminOnly(req: Request, res: Response, next: Function) {
@@ -90,17 +55,10 @@ function adminOnly(req: Request, res: Response, next: Function) {
   next();
 }
 
-// Check if WhatsApp is available (no admin required)
-router.get('/available', async (req: Request, res: Response) => {
-  const available = await checkWhatsAppAvailable();
-  res.json({ available });
-});
-
 // Get WhatsApp status
 router.get('/status', adminOnly, async (req: Request, res: Response) => {
   try {
-    const service = await getWhatsAppService();
-    const status = service.getStatus();
+    const status = whatsappService.getStatus();
     res.json(status);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -110,8 +68,7 @@ router.get('/status', adminOnly, async (req: Request, res: Response) => {
 // Get QR code as image
 router.get('/qr', adminOnly, async (req: Request, res: Response) => {
   try {
-    const service = await getWhatsAppService();
-    const status = service.getStatus();
+    const status = whatsappService.getStatus();
 
     if (status.connected) {
       return res.status(400).json({ error: 'Already connected' });
@@ -132,18 +89,16 @@ router.get('/qr', adminOnly, async (req: Request, res: Response) => {
 // Initialize WhatsApp (start the client)
 router.post('/initialize', adminOnly, async (req: Request, res: Response) => {
   try {
-    const service = await getWhatsAppService();
-
-    if (service.getStatus().connected) {
+    if (whatsappService.getStatus().connected) {
       return res.json({ message: 'Already connected' });
     }
 
-    if (service.isInitializing()) {
+    if (whatsappService.isInitializing()) {
       return res.json({ message: 'Already initializing' });
     }
 
     // Start initialization in background
-    whatsappInitPromise = service.initialize();
+    whatsappService.initialize();
     res.json({ message: 'Initializing WhatsApp, check /qr for QR code' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -153,8 +108,7 @@ router.post('/initialize', adminOnly, async (req: Request, res: Response) => {
 // Disconnect WhatsApp
 router.post('/disconnect', adminOnly, async (req: Request, res: Response) => {
   try {
-    const service = await getWhatsAppService();
-    await service.disconnect();
+    await whatsappService.disconnect();
     res.json({ message: 'Disconnected' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

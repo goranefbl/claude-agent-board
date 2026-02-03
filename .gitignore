@@ -17,6 +17,4 @@ backups/
 .DS_Store
 Thumbs.db
 mcp-config.json
-whatsapp/.wwebjs_auth/
-whatsapp/dist/
-whatsapp/node_modules/
+whatsapp-auth/

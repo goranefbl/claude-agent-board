@@ -70,7 +70,6 @@ export default function ConfigPage() {
   const { color: themeColor, setColor: setThemeColor, colorNames } = useTheme();
 
   // WhatsApp state (admin only)
-  const [waAvailable, setWaAvailable] = useState<boolean | null>(null);
   const [waStatus, setWaStatus] = useState<WhatsAppStatus | null>(null);
   const [waQrImage, setWaQrImage] = useState<string | null>(null);
   const [waLoading, setWaLoading] = useState(false);
@@ -107,16 +106,6 @@ export default function ConfigPage() {
   const fetchWhatsAppStatus = useCallback(async () => {
     if (role !== 'admin') return;
 
-    // First check if WhatsApp module is available
-    try {
-      const { available } = await api.get<{ available: boolean }>('/whatsapp/available');
-      setWaAvailable(available);
-      if (!available) return;
-    } catch {
-      setWaAvailable(false);
-      return;
-    }
-
     try {
       const status = await api.get<WhatsAppStatus>('/whatsapp/status');
       setWaStatus(status);
@@ -141,13 +130,11 @@ export default function ConfigPage() {
   useEffect(() => {
     if (role === 'admin') {
       fetchWhatsAppStatus();
-      // Poll every 5 seconds when waiting for QR scan (only if available)
-      const interval = setInterval(() => {
-        if (waAvailable) fetchWhatsAppStatus();
-      }, 5000);
+      // Poll every 5 seconds when waiting for QR scan
+      const interval = setInterval(fetchWhatsAppStatus, 5000);
       return () => clearInterval(interval);
     }
-  }, [role, fetchWhatsAppStatus, waAvailable]);
+  }, [role, fetchWhatsAppStatus]);
 
   const handleWhatsAppInit = async () => {
     setWaLoading(true);
@@ -621,46 +608,13 @@ export default function ConfigPage() {
               </p>
 
               <div className="bg-[#161b22] border border-gray-800/60 rounded-lg p-5">
-                {/* Not installed */}
-                {waAvailable === false && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-yellow-500 rounded-full" />
-                      <div className="text-sm text-yellow-400">WhatsApp module not installed</div>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      To enable WhatsApp integration, run one of these commands:
-                    </p>
-                    <div className="bg-[#0d1117] border border-gray-800/60 rounded-md p-3">
-                      <code className="text-xs text-gray-300 block mb-2"># If using npx:</code>
-                      <code className="text-xs text-green-400 block mb-3">npx @goranefbl/optimushq --install-whatsapp</code>
-                      <code className="text-xs text-gray-300 block mb-2"># Or with npm global install:</code>
-                      <code className="text-xs text-green-400 block">optimushq --install-whatsapp</code>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      Then restart the server to enable WhatsApp in this section.
-                    </p>
+                {waError && (
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-md text-sm text-red-400">
+                    {waError}
                   </div>
                 )}
 
-                {/* Loading state */}
-                {waAvailable === null && (
-                  <div className="flex items-center gap-3">
-                    <Loader2 size={16} className="animate-spin text-gray-500" />
-                    <div className="text-sm text-gray-500">Checking WhatsApp availability...</div>
-                  </div>
-                )}
-
-                {/* Installed - show status */}
-                {waAvailable === true && (
-                  <>
-                    {waError && (
-                      <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-md text-sm text-red-400">
-                        {waError}
-                      </div>
-                    )}
-
-                    {waStatus?.connected ? (
+                {waStatus?.connected ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
@@ -725,8 +679,6 @@ export default function ConfigPage() {
                       </div>
                     )}
                   </div>
-                )}
-                  </>
                 )}
               </div>
             </section>
