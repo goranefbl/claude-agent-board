@@ -1,6 +1,6 @@
 {
   "name": "@goranefbl/optimushq",
-  "version": "1.0.4",
+  "version": "1.0.9",
   "description": "A self-hosted, multi-tenant platform for running multiple Claude Code agents across projects",
   "bin": {
     "optimushq": "./bin/cli.js"
@@ -42,6 +42,17 @@
     "client/dist",
     "shared"
   ],
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2",
     "typescript": "^5.3.3"

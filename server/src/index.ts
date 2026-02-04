@@ -28,6 +28,19 @@ import sosContactsRouter from './routes/sos-contacts.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
+// Find package root (handles both direct and nested build outputs)
+function findPackageRoot(): string {
+  let dir = __dirname;
+  for (let i = 0; i < 5; i++) {
+    if (fs.existsSync(path.join(dir, 'client', 'dist', 'index.html'))) {
+      return dir;
+    }
+    dir = path.dirname(dir);
+  }
+  return path.join(__dirname, '..', '..'); // fallback
+}
+const PKG_ROOT = findPackageRoot();
+
 // Init DB
 createSchema();
 seed();
@@ -263,11 +276,11 @@ app.get('/api/preview-projects', (_req, res) => {
 });
 
 // Serve blog images and other public files
-const publicDir = path.join(__dirname, '..', '..', 'public');
+const publicDir = path.join(PKG_ROOT, 'public');
 app.use(express.static(publicDir));
 
 // Serve client static files in production
-const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
+const clientDist = path.join(PKG_ROOT, 'client', 'dist');
 app.use(express.static(clientDist));
 app.get('*', (_req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));

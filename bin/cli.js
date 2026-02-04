@@ -4,6 +4,22 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+// Prevent running as root
+if (process.getuid && process.getuid() === 0) {
+  console.error(`
+  Error: OptimusHQ cannot run as root.
+
+  Claude CLI requires --dangerously-skip-permissions which is
+  blocked for root users (for security reasons).
+
+  Please run as a non-root user:
+    sudo useradd -m claude
+    sudo su - claude
+    npx @goranefbl/optimushq
+`);
+  process.exit(1);
+}
+
 const args = process.argv.slice(2);
 const port = process.env.PORT || 3001;
 const authUser = process.env.AUTH_USER || 'admin';
@@ -11,7 +27,10 @@ const authPass = process.env.AUTH_PASS || 'admin';
 
 // Find the package root (where server/dist is)
 const pkgRoot = path.resolve(__dirname, '..');
-const serverEntry = path.join(pkgRoot, 'server', 'dist', 'index.js');
+// Try both possible build output paths
+const serverEntryDirect = path.join(pkgRoot, 'server', 'dist', 'index.js');
+const serverEntryNested = path.join(pkgRoot, 'server', 'dist', 'server', 'src', 'index.js');
+const serverEntry = fs.existsSync(serverEntryDirect) ? serverEntryDirect : serverEntryNested;
 
 // Check if just showing help
 if (args.includes('--help') || args.includes('-h')) {
