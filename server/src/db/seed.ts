@@ -36,8 +36,8 @@ services:
       WORDPRESS_DB_PASSWORD: wp
       WORDPRESS_DB_NAME: wp
       WORDPRESS_CONFIG_EXTRA: |
-        define('WP_HOME', 'https://<folder-name>.wpgens.com');
-        define('WP_SITEURL', 'https://<folder-name>.wpgens.com');
+        define('WP_HOME', 'https://<your-domain>');
+        define('WP_SITEURL', 'https://<your-domain>');
         define('FORCE_SSL_ADMIN', true);
         if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($$_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) { $$_SERVER['HTTPS'] = 'on'; }
     depends_on:
@@ -60,9 +60,9 @@ volumes:
   db-data:
 \`\`\`
 
-Replace <plugin-name> with the actual plugin slug. Replace \${DEV_PORT:-8080} with the project's assigned dev_port. Replace <folder-name> with the project's folder name (used for the subdomain URL).
+Replace <plugin-name> with the actual plugin slug. Replace \${DEV_PORT:-8080} with the project's assigned dev_port. Replace <your-domain> with the project's subdomain URL (e.g., https://project-name.example.com) - this is shown in your environment info as the Preview URL.
 
-CRITICAL: WP_HOME and WP_SITEURL must be set to the subdomain URL (https://<folder-name>.wpgens.com) WITHOUT any port number. The subdomain proxy handles port mapping. If these are wrong or missing, WordPress will redirect to 127.0.0.1 or the wrong URL. These MUST be set in docker-compose.yml BEFORE the first run.
+CRITICAL: WP_HOME and WP_SITEURL must be set to the subdomain URL WITHOUT any port number. The subdomain proxy handles port mapping. If these are wrong or missing, WordPress will redirect to 127.0.0.1 or the wrong URL. These MUST be set in docker-compose.yml BEFORE the first run.
 
 ## Plugin File Structure
 
@@ -98,7 +98,7 @@ IMPORTANT: WORDPRESS_CONFIG_EXTRA only applies during initial WordPress setup. I
 ## Development Workflow
 
 - PHP changes take effect immediately (no build step, no restart needed)
-- To access WordPress admin: https://<folder-name>.wpgens.com/wp-admin/ (complete the install wizard on first run)
+- To access WordPress admin: use the project's subdomain URL + /wp-admin/ (complete the install wizard on first run)
 - Activate the plugin from the WordPress admin Plugins page
 - If the containers are down, run: sudo docker compose up -d
 - To reset WordPress completely: sudo docker compose down -v && sudo docker compose up -d
@@ -252,9 +252,9 @@ You have access to the Project Manager MCP tools. Use them when the user asks yo
 - **read_project_file**: Read a file from any project by ID and relative path.
 
 **Project environments**:
-- Each project gets a dev_port (3100-3999 range) and is accessible at https://<folder-name>.wpgens.com/
+- Each project gets a dev_port (3100-3999 range) and is accessible via subdomain: <project-name>.<base-domain>
+- The base domain is set in platform Settings. Project preview URLs are injected into your context automatically.
 - The app is served at root "/" via subdomain -- do NOT set basePath, PUBLIC_URL, or any path prefix.
-- Static files are also available at https://agents.wpgens.com/preview/<folder-name>/
 - Port 3001 is reserved by the platform. Never kill processes on port 3001.
 
 When the user asks about git operations, give precise commands they can run. When setting up projects, prefer established conventions for the language/framework in question. Be direct and practical.`;

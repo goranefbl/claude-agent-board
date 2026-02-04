@@ -1,4 +1,5 @@
 import { getDb } from '../db/connection.js';
+import { getBaseDomain } from '../routes/settings.js';
 import type { Skill, Memory, MemoryEntry, Message, PermissionMode, Api } from '../../../shared/types.js';
 
 const MAX_HISTORY = 20;
@@ -55,6 +56,7 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
     '- The Chrome browser is running and you can navigate, screenshot, click, and inspect any website',
   ];
 
+  const baseDomain = getBaseDomain();
   if (session.project_path) {
     const folderName = session.project_path.split('/').pop();
     envLines.unshift(
@@ -67,8 +69,8 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
     if (session.dev_port) {
       envLines.push(
         `- This project's dev server port is ${session.dev_port}. Always start the dev server on this port.`,
-        `- Preview URL: https://${folderName}.wpgens.com/ (subdomain proxies to port ${session.dev_port})`,
-        `- Static files are also at: https://agents.wpgens.com/preview/${folderName}/`,
+        `- Preview URL: https://${folderName}.${baseDomain}/ (subdomain proxies to port ${session.dev_port})`,
+        `- Static files are also at: https://${baseDomain}/preview/${folderName}/`,
         `- IMPORTANT: Do NOT set basePath, PUBLIC_URL, or any path prefix in the project config. The app is served at the root "/" via subdomain.`,
         `- IMPORTANT: Avoid restarting the dev server unless absolutely necessary (e.g. config changes, dependency updates). Hot reload handles most code changes automatically.`,
         `- If you must restart the dev server, after starting it wait for it to be ready before telling the user it's available. Verify with: curl --retry 5 --retry-delay 2 --retry-all-errors -s -o /dev/null -w "%{http_code}" http://localhost:${session.dev_port}`,
@@ -76,15 +78,15 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
       );
     } else {
       envLines.push(
-        `- Preview URL (static files): https://agents.wpgens.com/preview/${folderName}/`,
+        `- Preview URL (static files): https://${baseDomain}/preview/${folderName}/`,
         `- If this project needs a dev server (Next.js, Vite, etc.), use a port in the 3100-3999 range. Check which ports are free first with: ss -tlnp | grep -E '31[0-9]{2}'`,
       );
     }
   } else {
     envLines.unshift(
       '- You can create projects in /home/claude/projects/<project-name>/',
-      '- Static files are served at https://agents.wpgens.com/preview/<project-name>/',
-      '- For dynamic apps, use subdomain: https://<project-name>.wpgens.com/ (requires dev_port set on project)',
+      `- Static files are served at https://${baseDomain}/preview/<project-name>/`,
+      `- For dynamic apps, use subdomain: https://<project-name>.${baseDomain}/ (requires dev_port set on project)`,
       '- CRITICAL: Port 3001 is reserved by the platform. NEVER kill processes on port 3001. When running dev servers, use ports 3100-3999. If a port is in use, pick another port in that range instead of killing the existing process.',
     );
   }

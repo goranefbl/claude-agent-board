@@ -105,4 +105,11 @@ export function getSetting(key: string, userId?: string): string | null {
   return row?.value ?? null;
 }
 
+// Get the base domain for subdomain URLs (from admin settings or env var)
+export function getBaseDomain(): string {
+  const fromSetting = getSetting('base_domain');
+  if (fromSetting) return fromSetting;
+  return process.env.BASE_DOMAIN || 'localhost';
+}
+
 export default router;

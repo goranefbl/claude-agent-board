@@ -16,7 +16,7 @@ import skillsRouter from './routes/skills.js';
 import memoryRouter from './routes/memory.js';
 import exportRouter from './routes/exportRoute.js';
 import authRouter, { authMiddleware } from './routes/auth.js';
-import settingsRouter from './routes/settings.js';
+import settingsRouter, { getBaseDomain } from './routes/settings.js';
 import filesRouter from './routes/files.js';
 import gitRouter from './routes/git.js';
 import mcpsRouter from './routes/mcps.js';
@@ -91,10 +91,12 @@ function proxyToDevServer(
 
 app.use((req, res, next) => {
   const host = req.headers.host || '';
-  // Match <project>.wpgens.com but skip reserved subdomains
-  const match = host.match(/^([^.]+)\.wpgens\.com/);
+  const baseDomain = getBaseDomain();
+  // Match <project>.<base-domain> but skip reserved subdomains
+  const domainPattern = new RegExp(`^([^.]+)\\.${baseDomain.replace(/\./g, '\\.')}$`);
+  const match = host.match(domainPattern);
   if (!match) return next();
-  const reserved = ['agents', 'agent', 'www', 'mail', 'ftp'];
+  const reserved = ['agents', 'agent', 'www', 'mail', 'ftp', 'api'];
   if (reserved.includes(match[1])) return next();
 
   const subdomain = match[1];

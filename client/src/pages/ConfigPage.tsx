@@ -4,7 +4,7 @@ import PageShell from '../components/layout/PageShell';
 import {
   Settings, Shield, Key, Save, Eye, EyeOff, Check, X,
   Plus, Trash2, ToggleLeft, ToggleRight, Palette, Cpu, Zap, MessageSquare,
-  Phone, Loader2, Power, PowerOff, RefreshCw
+  Phone, Loader2, Power, PowerOff, RefreshCw, Globe
 } from 'lucide-react';
 import type { PermissionMode } from '../../../shared/types';
 import { useTheme } from '../hooks/useTheme';
@@ -80,6 +80,11 @@ export default function ConfigPage() {
   const [waLoading, setWaLoading] = useState(false);
   const [waError, setWaError] = useState<string | null>(null);
 
+  // Platform settings (admin only)
+  const [baseDomain, setBaseDomain] = useState('');
+  const [domainSaving, setDomainSaving] = useState(false);
+  const [domainSaved, setDomainSaved] = useState(false);
+
   const fetchSettings = useCallback(async () => {
     const data = await api.get<Record<string, any>>('/settings');
     setSettings(data);
@@ -103,6 +108,7 @@ export default function ConfigPage() {
     if (data.default_model?.value) setDefaultModel(data.default_model.value);
     if (data.default_thinking?.value) setDefaultThinking(data.default_thinking.value === 'true');
     if (data.default_mode?.value) setDefaultMode(data.default_mode.value as PermissionMode);
+    if (data.base_domain?.value) setBaseDomain(data.base_domain.value);
   }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
@@ -122,6 +128,17 @@ export default function ConfigPage() {
       setTimeout(() => setPhoneSaved(false), 2000);
     } finally {
       setPhoneSaving(false);
+    }
+  };
+
+  const handleSaveDomain = async () => {
+    setDomainSaving(true);
+    try {
+      await api.put('/settings/base_domain', { value: baseDomain });
+      setDomainSaved(true);
+      setTimeout(() => setDomainSaved(false), 2000);
+    } finally {
+      setDomainSaving(false);
     }
   };
 
@@ -300,6 +317,39 @@ export default function ConfigPage() {
               })}
             </div>
           </section>
+
+          {/* Platform Settings (admin only) */}
+          {role === 'admin' && (
+            <section className="mb-10">
+              <div className="flex items-center gap-2 mb-4">
+                <Globe size={16} className="text-gray-400" />
+                <h2 className="text-base font-semibold text-white">Platform</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-5">
+                Configure platform-wide settings. The base domain is used for project subdomain URLs.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={baseDomain}
+                  onChange={e => setBaseDomain(e.target.value)}
+                  placeholder="example.com"
+                  className="flex-1 bg-[#161b22] border border-gray-800/60 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-600 focus:border-accent-500/50 focus:outline-none"
+                />
+                <button
+                  onClick={handleSaveDomain}
+                  disabled={domainSaving}
+                  className="flex items-center gap-2 px-4 py-2 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded-md text-sm text-white font-medium transition-colors"
+                >
+                  {domainSaved ? <Check size={14} /> : <Save size={14} />}
+                  {domainSaved ? 'Saved' : domainSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-600 mt-2">
+                Projects will be accessible at &lt;project-name&gt;.{baseDomain || 'example.com'}
+              </p>
+            </section>
+          )}
 
           {/* Model Defaults */}
           <section className="mb-10">
@@ -653,7 +703,7 @@ export default function ConfigPage() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-600 mt-1.5">
-                  International format without + (e.g., 38160123456 for Serbia)
+                  Enter phone (e.g., 38160123456) or WhatsApp LID. Check server logs for your LID when messaging.
                 </p>
               </div>
 
