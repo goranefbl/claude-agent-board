@@ -1,7 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '../db/connection.js';
-import type { SosForm, SosEntry, SosFieldConfig } from '../../shared/types.js';
+import type { SosForm, SosEntry, SosFieldConfig } from '../../../shared/types.js';
+
+// DB rows have JSON fields stored as strings
+type SosFormRow = Omit<SosForm, 'config'> & { config: string };
+type SosEntryRow = Omit<SosEntry, 'data'> & { data: string };
 
 const router = Router();
 
@@ -12,7 +16,7 @@ router.get('/forms', (req: Request, res: Response) => {
   const userId = req.user!.id;
   const forms = getDb()
     .prepare('SELECT id, user_id, name, description, config, created_at, updated_at FROM sos_forms WHERE user_id = ? ORDER BY created_at DESC')
-    .all(userId) as SosForm[];
+    .all(userId) as SosFormRow[];
 
   // Parse config JSON strings
   const parsed = forms.map(f => ({
@@ -28,7 +32,7 @@ router.get('/forms/:id', (req: Request, res: Response) => {
   const userId = req.user!.id;
   const form = getDb()
     .prepare('SELECT id, user_id, name, description, config, created_at, updated_at FROM sos_forms WHERE id = ? AND user_id = ?')
-    .get(req.params.id, userId) as SosForm | undefined;
+    .get(req.params.id, userId) as SosFormRow | undefined;
 
   if (!form) return res.status(404).json({ error: 'Form not found' });
 
@@ -53,7 +57,7 @@ router.post('/forms', (req: Request, res: Response) => {
     'INSERT INTO sos_forms (id, user_id, name, description, config) VALUES (?, ?, ?, ?, ?)'
   ).run(id, userId, name, description, JSON.stringify(config));
 
-  const form = db.prepare('SELECT * FROM sos_forms WHERE id = ?').get(id) as SosForm;
+  const form = db.prepare('SELECT * FROM sos_forms WHERE id = ?').get(id) as SosFormRow;
   res.status(201).json({
     ...form,
     config: JSON.parse(form.config)
@@ -93,7 +97,7 @@ router.put('/forms/:id', (req: Request, res: Response) => {
 
   db.prepare(`UPDATE sos_forms SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`).run(...values);
 
-  const updated = db.prepare('SELECT * FROM sos_forms WHERE id = ?').get(req.params.id);
+  const updated = db.prepare('SELECT * FROM sos_forms WHERE id = ?').get(req.params.id) as SosFormRow;
   res.json({
     ...updated,
     config: JSON.parse(updated.config)
@@ -139,7 +143,7 @@ router.get('/entries', (req: Request, res: Response) => {
 
   query += ' ORDER BY call_date DESC, call_time DESC';
 
-  const entries = getDb().prepare(query).all(...params) as SosEntry[];
+  const entries = getDb().prepare(query).all(...params) as SosEntryRow[];
 
   // Parse data JSON strings
   const parsed = entries.map(e => ({
@@ -155,7 +159,7 @@ router.get('/entries/:id', (req: Request, res: Response) => {
   const userId = req.user!.id;
   const entry = getDb()
     .prepare('SELECT * FROM sos_entries WHERE id = ? AND user_id = ?')
-    .get(req.params.id, userId) as SosEntry | undefined;
+    .get(req.params.id, userId) as SosEntryRow | undefined;
 
   if (!entry) return res.status(404).json({ error: 'Entry not found' });
 
@@ -193,7 +197,7 @@ router.post('/entries', (req: Request, res: Response) => {
     'INSERT INTO sos_entry_audit (id, entry_id, action, changed_by) VALUES (?, ?, ?, ?)'
   ).run(auditId, id, 'created', userId);
 
-  const entry = db.prepare('SELECT * FROM sos_entries WHERE id = ?').get(id) as SosEntry;
+  const entry = db.prepare('SELECT * FROM sos_entries WHERE id = ?').get(id) as SosEntryRow;
   res.status(201).json({
     ...entry,
     data: JSON.parse(entry.data)
@@ -239,7 +243,7 @@ router.put('/entries/:id', (req: Request, res: Response) => {
     'INSERT INTO sos_entry_audit (id, entry_id, action, changed_by) VALUES (?, ?, ?, ?)'
   ).run(auditId, req.params.id, 'updated', userId);
 
-  const updated = db.prepare('SELECT * FROM sos_entries WHERE id = ?').get(req.params.id);
+  const updated = db.prepare('SELECT * FROM sos_entries WHERE id = ?').get(req.params.id) as SosEntryRow;
   res.json({
     ...updated,
     data: JSON.parse(updated.data)
