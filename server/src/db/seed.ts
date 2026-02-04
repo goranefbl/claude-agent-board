@@ -6,6 +6,19 @@ export const GENERAL_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
 
 const WP_PLUGIN_SKILL_PROMPT = `# WordPress Plugin Development
 
+## Prerequisites
+
+**Docker is required.** If Docker is not installed, install it first:
+
+\`\`\`bash
+# Ubuntu/Debian
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo systemctl enable docker && sudo systemctl start docker
+sudo usermod -aG docker $USER
+\`\`\`
+
+After installing, the user may need to log out and back in for group membership to take effect, or run \`newgrp docker\`.
+
 ## Project Setup
 
 When setting up a new WordPress plugin project:
@@ -326,6 +339,9 @@ export function seed() {
     // For existing DBs, insert with a reference prompt that will be defined inline
     db.prepare('INSERT INTO skills (id, name, slug, description, prompt, is_global, scope, icon, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(wpSkill.id, wpSkill.name, wpSkill.slug, wpSkill.description, WP_PLUGIN_SKILL_PROMPT, wpSkill.is_global, wpSkill.scope, wpSkill.icon, adminUserId);
+  } else {
+    // Update existing WordPress skill with Docker installation instructions
+    db.prepare("UPDATE skills SET prompt = ? WHERE slug = 'wordpress-plugin-dev'").run(WP_PLUGIN_SKILL_PROMPT);
   }
 
   const agentCount = db.prepare('SELECT COUNT(*) as c FROM agents').get() as { c: number };
