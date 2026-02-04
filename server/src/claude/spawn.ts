@@ -78,11 +78,6 @@ export function spawnClaude(
     '--system-prompt', options.systemPrompt,
   ];
 
-  // Set working directory to project path if available
-  if (projectPath) {
-    args.push('--cwd', projectPath);
-  }
-
   if (options.model) {
     args.push('--model', options.model);
   }
@@ -134,6 +129,7 @@ export function spawnClaude(
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: false,
     env: spawnEnv,
+    cwd: projectPath || undefined,
   });
 
   console.log(`[SPAWN] Process started, pid=${child.pid}`);

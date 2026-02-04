@@ -162,15 +162,6 @@ Dedicated per-project field for dev server management:
 - Messages routed to user's account based on registered phone
 - Uses Baileys (lightweight WebSocket client) -- no Puppeteer or browser needed
 
-### SOS Contact Manager
-- Drag-and-drop form builder (10 field types: text, email, phone, number, date, time, textarea, dropdown, radio, checkbox)
-- Create unlimited forms for different purposes (emergency contacts, incident reports, etc.)
-- Submit entries with call date/time (editable) and automatic entry timestamp (read-only)
-- Date range filtering to view statistics for specific periods
-- Export entries to CSV or TXT format
-- All entries and audit logs stored in SQLite database
-- Track all changes with automatic audit logging
-
 ### Mobile Responsive
 - Collapsible sidebar with hamburger menu on mobile
 - Responsive layouts across all pages

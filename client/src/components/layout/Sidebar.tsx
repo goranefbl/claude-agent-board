@@ -264,10 +264,6 @@ export default function Sidebar({
         <NavItem to="/mcps" icon={<Plug size={16} />} label="MCPs" active={location.pathname === '/mcps'} count={counts.mcps} onClick={handleNavClick} />
         <NavItem to="/apis" icon={<Cable size={16} />} label="APIs" active={location.pathname === '/apis'} count={counts.apis} onClick={handleNavClick} />
 
-        {/* TOOLS section */}
-        <SectionHeader label="Tools" />
-        <NavItem to="/sos" icon={<User size={16} />} label="SOS Contacts" active={location.pathname === '/sos'} onClick={handleNavClick} />
-
         {/* SETTINGS section */}
         <SectionHeader label="Settings" />
         <NavItem to="/settings" icon={<Settings size={16} />} label="Config" active={location.pathname === '/settings'} onClick={handleNavClick} />

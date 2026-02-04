@@ -169,17 +169,6 @@ function migrate(db: ReturnType<typeof getDb>) {
     db.exec("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT NULL");
   }
 
-  // Add indexes for SOS tables if they exist
-  const sosFormsCols = db.prepare("PRAGMA table_info(sos_forms)").all() as { name: string }[];
-  if (sosFormsCols.length > 0) {
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_sos_forms_user_id ON sos_forms(user_id);
-      CREATE INDEX IF NOT EXISTS idx_sos_entries_user_id ON sos_entries(user_id);
-      CREATE INDEX IF NOT EXISTS idx_sos_entries_form_id ON sos_entries(form_id);
-      CREATE INDEX IF NOT EXISTS idx_sos_entries_call_date ON sos_entries(call_date);
-    `);
-  }
-
   // Migrate project paths to user-namespaced directories
   migrateProjectPaths(db);
 }
@@ -434,35 +423,6 @@ export function createSchema() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS sos_forms (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      config TEXT NOT NULL DEFAULT '[]',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS sos_entries (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      form_id TEXT NOT NULL REFERENCES sos_forms(id) ON DELETE CASCADE,
-      data TEXT NOT NULL DEFAULT '{}',
-      call_date TEXT NOT NULL,
-      call_time TEXT NOT NULL,
-      entry_created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS sos_entry_audit (
-      id TEXT PRIMARY KEY,
-      entry_id TEXT NOT NULL REFERENCES sos_entries(id) ON DELETE CASCADE,
-      action TEXT NOT NULL,
-      changed_by TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
   `);
 
   migrate(db);
