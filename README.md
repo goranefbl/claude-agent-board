@@ -53,12 +53,14 @@ Each session can run in one of three modes:
 
 ### Skills
 - Modular prompt instructions that can be toggled per session
-- 3 built-in skills: Code Review, Concise Output, Testing
+- 5 built-in skills: Code Review, Concise Output, Testing, WordPress Plugin Dev, Email Marketing
 - Create custom skills with full prompt definitions
 - Import skills from [skills.sh](https://skills.sh) or any GitHub URL
 - **Chat-based skill creation**: Describe skills in natural language or paste a GitHub repo URL -- the agent imports them conversationally using the `create_skill` MCP tool
 - Scope skills globally or per project
 - File glob patterns to target specific file types
+
+> **Security Warning**: Always review skill instructions before installing. Malicious skills can contain instructions that exfiltrate sensitive data (like `.env` files, API keys, or credentials) to external servers. Only install skills from trusted sources and inspect the prompt content carefully.
 
 ### APIs
 - Register external APIs with base URL, auth config, and endpoint documentation
@@ -88,6 +90,8 @@ Two built-in MCP servers:
 **Internal vs User MCP servers**: System MCP servers (like Project Manager) are hidden from the UI to keep the interface clean. Users can add custom MCP servers with command, args, and environment variables.
 
 **Chat-based MCP import**: Describe an MCP or paste a GitHub/npm URL in the MCPs page -- the agent researches it and creates the MCP configuration using the `create_mcp` tool. Environment variables (API keys) are encrypted at rest using AES-256-CBC.
+
+> **Security Warning**: MCP servers execute code on your system. Only install MCPs from trusted sources. Review the source code before installation -- malicious MCPs can access files, environment variables, and network resources. Be especially careful with MCPs that request sensitive environment variables.
 
 ### Memory
 Three levels of persistent memory:
