@@ -33,8 +33,8 @@ export default function MainLayout({ sidebar, header, children, rightPanel }: Pr
         {sidebar}
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        {header}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-shrink-0">{header}</div>
         <SetupBanner />
         <div className="flex-1 flex overflow-hidden">
           <main className="flex-1 overflow-hidden">{children}</main>

@@ -44,8 +44,8 @@ export default function ChatView({
 
   return (
     <div className="flex flex-col h-full">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-4xl mx-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+        <div className="max-w-4xl mx-auto min-w-0">
           {!hasSession && (
             <div className="flex items-center justify-center h-full text-gray-500 text-sm">
               Select or create a session to start chatting
