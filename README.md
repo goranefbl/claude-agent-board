@@ -94,11 +94,33 @@ Two built-in MCP servers:
 > **Security Warning**: MCP servers execute code on your system. Only install MCPs from trusted sources. Review the source code before installation -- malicious MCPs can access files, environment variables, and network resources. Be especially careful with MCPs that request sensitive environment variables.
 
 ### Memory
-Three levels of persistent memory:
+Three levels of persistent memory that work together to give agents long-term context:
 
-- **Session Memory**: Auto-summarized every 5 messages using Haiku. Keeps conversation context compact without losing important details. Includes pinned facts for critical info that should never be forgotten.
-- **Project Memory**: Shared across all sessions in a project. Use it for architecture decisions, known issues, working notes -- anything future sessions should know. Agents can read and write it via MCP.
-- **Memory Entries**: Structured, searchable memory items with categories (decision, issue, note, reference, todo), titles, tags, and full-text search. Agents can add entries via `add_memory_entry` and search with `search_memory`.
+**Session Memory**
+- Auto-summarized every 5 messages using Haiku (cost-optimized)
+- Pulls the last 20 messages and generates a sub-200-word summary
+- Runs asynchronously after each agent response -- does not block the chat
+- Includes pinned facts for critical info that should never be forgotten
+- Can be disabled per project via the `auto_summarize` flag
+
+**Project Memory**
+- Shared across all sessions in a project -- persistent context that survives session boundaries
+- Agents read and write it via `get_project_memory` / `update_project_memory` MCP tools
+- Use it for architecture decisions, known issues, working notes -- anything future sessions should know
+- Editable from the UI or programmatically by agents
+
+**Memory Entries (Structured)**
+- Discrete, searchable items with categories: `decision`, `feature`, `bug`, `content`, `todo`, `context`
+- Auto-extracted every 10 messages -- Haiku reviews recent conversation and pulls up to 3 entries
+- Deduplication: skips entries with duplicate titles within 24 hours
+- Full-text search via SQLite FTS5 with support for phrases, AND/OR operators, and wildcards
+- Agents can manually create entries via `add_memory_entry` and search with `search_memory`
+- Tags support for additional organization and filtering
+
+**How memory flows into agent context:**
+1. On each session start, the system prompt is assembled with project memory, the last 5 memory entries, and the session summary
+2. Agents are informed about available memory MCP tools (`search_memory`, `add_memory_entry`, `list_memory_entries`, `get_project_memory`, `update_project_memory`)
+3. All summarization and extraction runs async using Haiku to keep costs low and avoid blocking the chat
 
 ### Server Config
 Dedicated per-project field for dev server management:
