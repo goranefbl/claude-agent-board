@@ -253,15 +253,17 @@ This is a hard constraint. Do not combine your confirmation question with tool e
   const defaultModelSetting = sessionUserId
     ? db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'default_model'").get(sessionUserId) as { value: string } | undefined
     : undefined;
-  const resolvedModel = modelOverride || defaultModelSetting?.value || session.model || 'sonnet';
+  const shortModel = modelOverride || defaultModelSetting?.value || session.model || 'sonnet';
 
-  // Model identity so the agent can accurately report what it's running as
-  const MODEL_LABELS: Record<string, string> = {
-    'sonnet': 'Claude Sonnet 4.5',
-    'opus': 'Claude Opus 4',
-    'haiku': 'Claude Haiku 4.5',
+  // Map short names to explicit model IDs and display labels
+  const MODEL_MAP: Record<string, { id: string; label: string }> = {
+    'sonnet': { id: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
+    'opus':   { id: 'claude-opus-4-6', label: 'Claude Opus 4 (claude-opus-4-6)' },
+    'haiku':  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
   };
-  const modelLabel = MODEL_LABELS[resolvedModel] || resolvedModel;
+  const mapped = MODEL_MAP[shortModel];
+  const resolvedModel = mapped?.id || shortModel;
+  const modelLabel = mapped?.label || shortModel;
   systemParts.push(`You are running as ${modelLabel}.`);
 
   return {
