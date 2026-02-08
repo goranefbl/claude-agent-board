@@ -255,6 +255,15 @@ This is a hard constraint. Do not combine your confirmation question with tool e
     : undefined;
   const resolvedModel = modelOverride || defaultModelSetting?.value || session.model || 'sonnet';
 
+  // Model identity so the agent can accurately report what it's running as
+  const MODEL_LABELS: Record<string, string> = {
+    'sonnet': 'Claude Sonnet 4.5',
+    'opus': 'Claude Opus 4',
+    'haiku': 'Claude Haiku 4.5',
+  };
+  const modelLabel = MODEL_LABELS[resolvedModel] || resolvedModel;
+  systemParts.push(`You are running as ${modelLabel}.`);
+
   return {
     systemPrompt: systemParts.join('\n\n'),
     model: resolvedModel,
