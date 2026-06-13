@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ActivityLog from './ActivityLog';
+import AskUserQuestionCard from './AskUserQuestionCard';
 import type { Message } from '../../../../shared/types';
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
 export default function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user';
 
-  const toolActivities = useMemo(() => {
+  const allActivities = useMemo(() => {
     if (!message.tool_use || isUser) return [];
     try {
       return JSON.parse(message.tool_use) as { tool: string; input: Record<string, unknown>; result?: string }[];
@@ -19,6 +20,16 @@ export default function MessageBubble({ message }: Props) {
       return [];
     }
   }, [message.tool_use, isUser]);
+
+  // AskUserQuestion is surfaced as its own card instead of being buried in the steps log.
+  const questionCards = useMemo(
+    () => allActivities.filter(a => a.tool === 'AskUserQuestion'),
+    [allActivities],
+  );
+  const toolActivities = useMemo(
+    () => allActivities.filter(a => a.tool !== 'AskUserQuestion'),
+    [allActivities],
+  );
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -36,6 +47,12 @@ export default function MessageBubble({ message }: Props) {
             {toolActivities.length > 0 && (
               <ActivityLog activities={toolActivities} />
             )}
+            {questionCards.map((q, i) => (
+              <AskUserQuestionCard
+                key={i}
+                questions={(q.input?.questions as any) || []}
+              />
+            ))}
             <div className="prose prose-invert prose-sm max-w-none overflow-x-auto
               prose-p:my-2 prose-p:leading-relaxed
               prose-headings:mt-4 prose-headings:mb-2

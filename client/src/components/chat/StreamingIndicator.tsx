@@ -2,6 +2,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Globe, Terminal, Search, FileText, Loader, Sparkles } from 'lucide-react';
+import AskUserQuestionCard from './AskUserQuestionCard';
 
 interface ToolActivity {
   type: 'use' | 'result';
@@ -91,6 +92,9 @@ export default function StreamingIndicator({ content, toolActivities, activeSkil
         {hasToolActivity && (
           <div className="mb-2 space-y-1">
             {toolActivities.map((activity, i) => (
+              activity.tool === 'AskUserQuestion' && activity.type === 'use' ? (
+                <AskUserQuestionCard key={i} questions={(activity.input?.questions as any) || []} />
+              ) : (
               <div
                 key={i}
                 className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${
@@ -114,6 +118,7 @@ export default function StreamingIndicator({ content, toolActivities, activeSkil
                   </>
                 )}
               </div>
+              )
             ))}
           </div>
         )}

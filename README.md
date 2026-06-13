@@ -34,6 +34,7 @@ Claude Code is powerful but limited to one terminal session at a time. This proj
 ### Chat
 - Real-time streaming over WebSocket with structured NDJSON output
 - Tool use is displayed inline (Bash commands, file edits, browser actions)
+- `AskUserQuestion` calls render as a dedicated card showing the question, options, and recommended choice (both live and in history)
 - Per-message model override (switch between Haiku/Sonnet/Opus on the fly)
 - Message queue with pending message handling across page navigation
 - Interrupt running agents at any time
