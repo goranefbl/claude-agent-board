@@ -141,6 +141,16 @@ export function spawnClaude(
   let stderrText = '';
   const toolInteractions: { tool: string; input: unknown; result?: string }[] = [];
 
+  // Wrap the handler so we know whether a terminal (done/error) event was ever
+  // emitted. If the child crashes mid-stream (e.g. non-zero exit before the
+  // CLI emits a `result` event), we must still finalize the session so the
+  // websocket layer clears `streamingSessions` and the UI stop button works.
+  let terminalEmitted = false;
+  const emit: EventHandler = (event) => {
+    if (event.type === 'done' || event.type === 'error') terminalEmitted = true;
+    onEvent(event);
+  };
+
   child.stdout.on('data', (data: Buffer) => {
     const chunk = data.toString();
     console.log(`[SPAWN] stdout chunk (${chunk.length} bytes): ${chunk.substring(0, 200)}`);
@@ -155,7 +165,7 @@ export function spawnClaude(
       try {
         const event = JSON.parse(line);
         console.log(`[SPAWN] Parsed event type=${event.type} subtype=${event.subtype || ''}`);
-        processEvent(event, sessionId, onEvent, (t) => { fullText += t; }, toolInteractions);
+        processEvent(event, sessionId, emit, (t) => { fullText += t; }, toolInteractions);
       } catch (e: any) {
         console.log(`[SPAWN] Failed to parse line: ${line.substring(0, 100)} err=${e.message}`);
       }
@@ -176,7 +186,7 @@ export function spawnClaude(
     if (buffer.trim()) {
       try {
         const event = JSON.parse(buffer);
-        processEvent(event, sessionId, onEvent, (t) => { fullText += t; }, toolInteractions);
+        processEvent(event, sessionId, emit, (t) => { fullText += t; }, toolInteractions);
       } catch {
         // ignore
       }
@@ -187,20 +197,29 @@ export function spawnClaude(
     if (killedSessions.has(sessionId)) {
       killedSessions.delete(sessionId);
       console.log(`[SPAWN] Emitting synthetic done for killed session ${sessionId}, fullText.length=${fullText.length}`);
-      onEvent({ type: 'done', content: fullText, interrupted: true });
+      emit({ type: 'done', content: fullText, interrupted: true });
       return;
     }
 
-    if (code !== 0 && code !== null && !fullText) {
-      console.log(`[SPAWN] Error exit. stderr: ${stderrText}`);
-      onEvent({ type: 'error', content: stderrText || `Process exited with code ${code}` });
+    // If the CLI never emitted a terminal (`result`) event -- e.g. it crashed or
+    // exited non-zero mid-stream -- finalize the session ourselves. Without this,
+    // `streamingSessions` is never cleared and the UI stays stuck "streaming"
+    // with a stop button that does nothing.
+    if (!terminalEmitted) {
+      if (fullText) {
+        console.log(`[SPAWN] Process ended without result event (code=${code}); emitting interrupted done. fullText.length=${fullText.length}`);
+        emit({ type: 'done', content: fullText, interrupted: true });
+      } else {
+        console.log(`[SPAWN] Error exit. code=${code} stderr: ${stderrText}`);
+        emit({ type: 'error', content: stderrText || `Process exited with code ${code}` });
+      }
     }
   });
 
   child.on('error', (err) => {
     console.error(`[SPAWN] Process error:`, err.message);
     activeProcesses.delete(sessionId);
-    onEvent({ type: 'error', content: err.message });
+    emit({ type: 'error', content: err.message });
   });
 }
 
