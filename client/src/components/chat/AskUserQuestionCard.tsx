@@ -26,12 +26,27 @@ function stripRecommended(label: string): string {
   return label.replace(/\s*\(recommended\)\s*$/i, '').trim();
 }
 
+// Tolerate malformed payloads: `questions` can arrive as a double-encoded JSON
+// string or a non-array, which would otherwise crash the page on `.map`.
+function normalizeQuestions(input: unknown): Question[] {
+  let value: unknown = input;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(value) ? (value as Question[]) : [];
+}
+
 export default function AskUserQuestionCard({ questions }: Props) {
-  if (!questions || questions.length === 0) return null;
+  const normalized = normalizeQuestions(questions);
+  if (normalized.length === 0) return null;
 
   return (
     <div className="mb-3 space-y-3">
-      {questions.map((q, qi) => (
+      {normalized.map((q, qi) => (
         <div key={qi} className="rounded-lg border border-accent-600/40 bg-accent-600/5">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-accent-600/30">
             <HelpCircle size={14} className="text-accent-400 shrink-0" />
@@ -47,7 +62,7 @@ export default function AskUserQuestionCard({ questions }: Props) {
           <div className="px-3 py-2.5">
             <p className="text-sm text-gray-200 font-medium mb-2.5">{q.question}</p>
             <div className="space-y-1.5">
-              {q.options.map((opt, oi) => {
+              {(Array.isArray(q.options) ? q.options : []).map((opt, oi) => {
                 const recommended = isRecommended(opt.label);
                 return (
                   <div
