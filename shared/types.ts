@@ -223,6 +223,7 @@ export interface WsDoneMessage {
   cost?: number;
   interrupted?: boolean;
   hasMore?: boolean;
+  awaitingAnswer?: boolean; // turn paused on an AskUserQuestion; user should reply in chat
 }
 
 export interface WsErrorMessage {

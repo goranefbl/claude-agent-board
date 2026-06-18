@@ -367,6 +367,11 @@ export function spawnForSession(sessionId: string, content: string, images?: str
 
   const assistantMsgId = uuid();
   let fullText = '';
+  // Set once the agent calls AskUserQuestion: we finalize the turn ourselves and
+  // suppress everything that follows, so the agent waits for the user's chat reply
+  // instead of proceeding with default answers (the one-shot CLI can't be answered
+  // interactively, so it would otherwise resolve the question as "closed").
+  let questionFinalized = false;
   const toolInteractions: { tool: string; input: unknown; result?: string }[] = [];
 
   streamingSessions.add(sessionId);
@@ -387,11 +392,13 @@ export function spawnForSession(sessionId: string, content: string, images?: str
     (event) => {
       switch (event.type) {
         case 'text':
+          if (questionFinalized) break; // ignore trailing "proceed with defaults" text
           fullText += event.content || '';
           broadcastToSessionOwner(sessionId, { type: 'chat:chunk', sessionId, content: event.content || '' });
           break;
 
-        case 'tool_use':
+        case 'tool_use': {
+          if (questionFinalized) break;
           toolInteractions.push({ tool: event.tool || '', input: event.toolInput || {} });
           broadcastToSessionOwner(sessionId, {
             type: 'chat:tool_use',
@@ -403,9 +410,27 @@ export function spawnForSession(sessionId: string, content: string, images?: str
           if (event.tool === 'mcp__project-manager__use_skill' && event.toolInput?.name) {
             broadcastToSessionOwner(sessionId, { type: 'chat:skill', sessionId, skill: event.toolInput.name as string });
           }
+          // AskUserQuestion can't be answered in the one-shot CLI; stop here and let
+          // the user reply in chat. Finalize the turn now so the question card is the
+          // last thing shown, and kill the agent so it can't proceed with defaults.
+          if (event.tool === 'AskUserQuestion') {
+            questionFinalized = true;
+            streamingSessions.delete(sessionId);
+            db.prepare('INSERT OR REPLACE INTO messages (id, session_id, role, content, tool_use, interrupted) VALUES (?, ?, ?, ?, ?, ?)')
+              .run(assistantMsgId, sessionId, 'assistant', fullText, JSON.stringify(toolInteractions), 0);
+            broadcastToSessionOwner(sessionId, {
+              type: 'chat:done',
+              sessionId,
+              messageId: assistantMsgId,
+              awaitingAnswer: true,
+            });
+            killProcess(sessionId);
+          }
           break;
+        }
 
         case 'tool_result': {
+          if (questionFinalized) break;
           // Attach result to last tool interaction
           const last = toolInteractions[toolInteractions.length - 1];
           if (last) last.result = event.toolResult;
@@ -419,6 +444,9 @@ export function spawnForSession(sessionId: string, content: string, images?: str
         }
 
         case 'done': {
+          // Already finalized by an AskUserQuestion; the kill triggers a synthetic
+          // done that we must ignore (turn was saved and broadcast already).
+          if (questionFinalized) { streamingSessions.delete(sessionId); break; }
           streamingSessions.delete(sessionId);
           const finalText = event.content || fullText;
           const isInterrupted = !!event.interrupted;
@@ -484,6 +512,7 @@ export function spawnForSession(sessionId: string, content: string, images?: str
         }
 
         case 'error':
+          if (questionFinalized) break; // turn already finalized by AskUserQuestion
           streamingSessions.delete(sessionId);
           messageQueue.delete(sessionId);
           broadcastToSessionOwner(sessionId, { type: 'chat:error', sessionId, error: event.content || 'Unknown error' });
