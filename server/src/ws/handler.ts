@@ -338,11 +338,19 @@ export function spawnForSession(sessionId: string, content: string, images?: str
   `).get(sessionId) as { path: string | null } | undefined;
   const projectPath = sessionProject?.path || null;
 
-  // Build message for Claude -- append image references if present
+  // Build message for Claude -- append attachment references if present.
+  // `images` carries paths for any uploaded attachment (images and CSV/other files);
+  // label each by extension so the agent knows what it actually received.
   let claudeContent = content;
   if (images && images.length > 0) {
-    const imageRefs = images.map(p => `[Attached image: ${p}]`).join('\n');
-    claudeContent = `${content}\n\n${imageRefs}\n\nThe user attached ${images.length} image(s). Read them using the file read tool to see what was shared.`;
+    const isImage = (p: string) => /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)$/i.test(p);
+    const refs = images.map(p => `[Attached ${isImage(p) ? 'image' : 'file'}: ${p}]`).join('\n');
+    const imageCount = images.filter(isImage).length;
+    const fileCount = images.length - imageCount;
+    const parts: string[] = [];
+    if (imageCount > 0) parts.push(`${imageCount} image(s)`);
+    if (fileCount > 0) parts.push(`${fileCount} file(s)`);
+    claudeContent = `${content}\n\n${refs}\n\nThe user attached ${parts.join(' and ')}. Read them using the file read tool to see what was shared.`;
   }
 
   // Assemble context
