@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp, Square, X, ChevronDown, Sparkles, Check, Eye, MessageSquare, Zap, FileSpreadsheet } from 'lucide-react';
+import { ArrowUp, Square, X, ChevronDown, Sparkles, Check, Eye, MessageSquare, Zap, FileSpreadsheet, Paperclip } from 'lucide-react';
 import { api } from '../../api/http';
 import type { PermissionMode } from '../../../../shared/types';
 
@@ -50,6 +50,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [showModeMenu, setShowModeMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const modeMenuRef = useRef<HTMLDivElement>(null);
@@ -89,7 +90,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
 
   const addFiles = useCallback(async (incoming: File[]) => {
     const imageFiles = incoming.filter(f => f.type.startsWith('image/'));
-    const csvFiles = incoming.filter(f => f.name.endsWith('.csv') || ALLOWED_FILE_TYPES.includes(f.type));
+    const csvFiles = incoming.filter(f => f.name.toLowerCase().endsWith('.csv') || ALLOWED_FILE_TYPES.includes(f.type));
 
     if (imageFiles.length > 0) {
       const newImages: PendingImage[] = [];
@@ -192,6 +193,12 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
     addFiles(droppedFiles);
   }, [addFiles]);
 
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    if (selected.length > 0) addFiles(selected);
+    e.target.value = ''; // reset so selecting the same file again re-triggers change
+  }, [addFiles]);
+
   // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
@@ -264,6 +271,24 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
           {/* Bottom toolbar */}
           <div className="flex items-center justify-between px-3 pb-2.5">
             <div className="flex items-center gap-1.5">
+              {/* Attach file (images + CSV) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.csv,text/csv,application/vnd.ms-excel"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800/60 transition-colors disabled:opacity-50"
+                title="Attach image or CSV"
+              >
+                <Paperclip size={16} />
+              </button>
+
               {/* Model selector */}
               <div className="relative" ref={modelMenuRef}>
                 <button
