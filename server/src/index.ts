@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import http, { createServer } from 'http';
+import net from 'net';
 import { WebSocketServer } from 'ws';
 import { createSchema } from './db/schema.js';
 import { seed } from './db/seed.js';
@@ -215,15 +216,16 @@ function proxyToDevServer(
   }
 }
 
-app.use((req, res, next) => {
-  const host = req.headers.host || '';
+// Resolve <project>.<base-domain> host to the project's dev_port.
+// Returns null if the host is not a project subdomain, undefined if it is
+// one but no running project matches.
+function resolveProjectDevPort(host: string): number | null | undefined {
   const baseDomain = getBaseDomain();
-  // Match <project>.<base-domain> but skip reserved subdomains
   const domainPattern = new RegExp(`^([^.]+)\\.${baseDomain.replace(/\./g, '\\.')}$`);
-  const match = host.match(domainPattern);
-  if (!match) return next();
+  const match = (host.split(':')[0] || '').match(domainPattern);
+  if (!match) return null;
   const reserved = ['agents', 'agent', 'www', 'mail', 'ftp', 'api'];
-  if (reserved.includes(match[1])) return next();
+  if (reserved.includes(match[1])) return null;
 
   const subdomain = match[1];
   const db = getDb();
@@ -231,12 +233,16 @@ app.use((req, res, next) => {
   const project = db.prepare(
     "SELECT dev_port, path FROM projects WHERE dev_port IS NOT NULL AND path LIKE ?"
   ).get(`%/${subdomain}`) as { dev_port: number; path: string } | undefined;
+  return project?.dev_port;
+}
 
-  if (!project) {
-    return res.status(404).send(`No project found for subdomain: ${subdomain}`);
+app.use((req, res, next) => {
+  const port = resolveProjectDevPort(req.headers.host || '');
+  if (port === null) return next();
+  if (port === undefined) {
+    return res.status(404).send(`No project found for subdomain: ${req.headers.host}`);
   }
-
-  proxyToDevServer(req, res, project.dev_port);
+  proxyToDevServer(req, res, port);
 });
 
 app.use(cors());
@@ -416,8 +422,36 @@ app.get('*', (_req, res) => {
 
 // HTTP + WS server
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ noServer: true });
 setupWebSocket(wss);
+
+// Route WebSocket upgrades: project subdomains get their upgrade proxied
+// raw to the dev server (Vite HMR needs this or its client falls into a
+// reconnect/full-reload loop); everything else goes to the chat WS.
+server.on('upgrade', (req, socket, head) => {
+  const port = resolveProjectDevPort(req.headers.host || '');
+  if (port) {
+    const upstream = net.connect(port, '127.0.0.1', () => {
+      const headerLines = [];
+      for (let i = 0; i < req.rawHeaders.length; i += 2) {
+        headerLines.push(`${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}`);
+      }
+      upstream.write(
+        `${req.method} ${req.url} HTTP/1.1\r\n${headerLines.join('\r\n')}\r\n\r\n`
+      );
+      if (head.length) upstream.write(head);
+      upstream.pipe(socket);
+      socket.pipe(upstream);
+    });
+    const destroyBoth = () => { upstream.destroy(); socket.destroy(); };
+    upstream.on('error', destroyBoth);
+    socket.on('error', destroyBoth);
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit('connection', ws, req);
+  });
+});
 
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
