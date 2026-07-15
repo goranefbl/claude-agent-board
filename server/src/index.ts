@@ -287,8 +287,8 @@ app.post('/api/upload/image', (req, res) => {
   const { data, filename } = req.body; // data = base64 string, filename = original name
   if (!data) return res.status(400).json({ error: 'data (base64) required' });
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  const ext = (filename || 'file').split('.').pop() || 'bin';
-  const prefix = ext === 'csv' ? 'csv' : 'img';
+  const ext = ((filename || 'file').split('.').pop() || 'bin').toLowerCase();
+  const prefix = ['csv', 'xls', 'xlsx'].includes(ext) ? ext : 'img';
   const name = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
   const filePath = path.join(UPLOAD_DIR, name);
   const buffer = Buffer.from(data, 'base64');

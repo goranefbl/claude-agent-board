@@ -350,7 +350,12 @@ export function spawnForSession(sessionId: string, content: string, images?: str
     const parts: string[] = [];
     if (imageCount > 0) parts.push(`${imageCount} image(s)`);
     if (fileCount > 0) parts.push(`${fileCount} file(s)`);
-    claudeContent = `${content}\n\n${refs}\n\nThe user attached ${parts.join(' and ')}. Read them using the file read tool to see what was shared.`;
+    const hasBinarySpreadsheet = images.some(p => /\.xlsx?$/i.test(p));
+    let readHint = 'Read them using the file read tool to see what was shared.';
+    if (hasBinarySpreadsheet) {
+      readHint += ' Excel files (.xls/.xlsx) are binary — do not read them directly; extract the data with python3 (openpyxl for .xlsx, xlrd for .xls are installed).';
+    }
+    claudeContent = `${content}\n\n${refs}\n\nThe user attached ${parts.join(' and ')}. ${readHint}`;
   }
 
   // Assemble context

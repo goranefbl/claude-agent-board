@@ -37,6 +37,7 @@ Claude Code is powerful but limited to one terminal session at a time. This proj
 - `AskUserQuestion` calls render as a dedicated card showing the question, options, and recommended choice (both live and in history)
 - Per-message model override (switch between Haiku/Sonnet/Opus on the fly)
 - Message queue with pending message handling across page navigation
+- File attachments: images plus CSV and Excel (.xls/.xlsx) spreadsheets via picker, drag-and-drop, or paste
 - Interrupt running agents at any time
 - Session-based isolation with WebSocket message queuing for reliability
 

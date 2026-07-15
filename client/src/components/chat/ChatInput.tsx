@@ -14,7 +14,12 @@ interface PendingFile {
   data: string;    // base64 data
 }
 
-const ALLOWED_FILE_TYPES = ['text/csv', 'application/vnd.ms-excel'];
+const ALLOWED_FILE_TYPES = [
+  'text/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+const ALLOWED_FILE_EXTENSIONS = ['.csv', '.xls', '.xlsx'];
 
 const MODELS = [
   { value: 'sonnet', label: 'Sonnet', desc: 'Balanced speed and intelligence' },
@@ -90,7 +95,9 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
 
   const addFiles = useCallback(async (incoming: File[]) => {
     const imageFiles = incoming.filter(f => f.type.startsWith('image/'));
-    const csvFiles = incoming.filter(f => f.name.toLowerCase().endsWith('.csv') || ALLOWED_FILE_TYPES.includes(f.type));
+    const dataFiles = incoming.filter(f =>
+      ALLOWED_FILE_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext)) || ALLOWED_FILE_TYPES.includes(f.type)
+    );
 
     if (imageFiles.length > 0) {
       const newImages: PendingImage[] = [];
@@ -101,9 +108,9 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
       setImages(prev => [...prev, ...newImages]);
     }
 
-    if (csvFiles.length > 0) {
+    if (dataFiles.length > 0) {
       const newFiles: PendingFile[] = [];
-      for (const file of csvFiles) {
+      for (const file of dataFiles) {
         const data = await fileToBase64(file);
         newFiles.push({ name: file.name, data });
       }
@@ -170,7 +177,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
 
     const pastedFiles: File[] = [];
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/') || items[i].type === 'text/csv') {
+      if (items[i].type.startsWith('image/') || ALLOWED_FILE_TYPES.includes(items[i].type)) {
         const file = items[i].getAsFile();
         if (file) pastedFiles.push(file);
       }
@@ -275,7 +282,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,.csv,text/csv,application/vnd.ms-excel"
+                accept="image/*,.csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}
